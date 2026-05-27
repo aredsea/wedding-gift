@@ -325,6 +325,51 @@ body {
 }
 .toast.show { opacity:1; }
 
+/* === SHORTCUT GUIDE === */
+.shortcut-bar {
+  display:none; padding:8px 16px; background:var(--card);
+  border-bottom:0.5px solid var(--border); font-size:12px; color:var(--text2);
+  flex-wrap:wrap; gap:4px 14px; align-items:center;
+}
+.shortcut-bar.show { display:flex; }
+.shortcut-bar kbd {
+  display:inline-block; padding:1px 5px; border-radius:3px;
+  background:#EFEFF4; font-size:11px; font-weight:600; color:var(--text);
+  font-family:inherit; border:1px solid var(--border); min-width:18px; text-align:center;
+}
+.shortcut-bar .sk { white-space:nowrap; }
+.sk-toggle { font-size:16px !important; padding:6px 8px !important; }
+
+/* === RESPONSIVE === */
+@media (min-width:768px) {
+  body { max-width:900px; margin:0 auto; }
+  .hdr { padding:12px 24px 8px; }
+  .tabs { padding:8px 24px; }
+  .shortcut-bar { padding:8px 24px; }
+  .qi-toggle { max-width:500px; margin-left:auto; margin-right:auto; }
+  .qinput { max-width:500px; margin-left:auto; margin-right:auto; }
+  .gi { padding:14px 16px; }
+  .gi-name { font-size:16px; }
+  .gi-ck { width:42px; height:42px; }
+  .gi-ck b { font-size:16px; }
+  .glist { padding-bottom:40px; }
+  .bbar { display:none; }
+}
+
+@media (min-width:1024px) {
+  body { max-width:1200px; }
+  .main-area { display:grid; grid-template-columns:380px 1fr; gap:0 20px; padding:0 24px; }
+  .input-col { position:sticky; top:120px; align-self:start; }
+  .qi-toggle { display:none !important; }
+  .qinput, .qinput.collapsed {
+    height:auto !important; overflow:visible !important;
+    padding:14px !important; margin:0 !important; max-width:none;
+  }
+  .list-col { min-width:0; }
+  .search-wrap { padding:8px 0; }
+  .stats { padding:12px 0; }
+}
+
 input[type="file"] { display:none; }
 </style>
 </head>
@@ -335,7 +380,8 @@ input[type="file"] { display:none; }
   <div class="hdr-row">
     <h1>축의금 정리</h1>
     <div class="hdr-right">
-      <button class="hdr-btn" onclick="switchView('stats')" id="statsBtn">통계</button>
+      <button class="hdr-btn sk-toggle" onclick="toggleShortcuts()" title="단축키 (?)">⌨</button>
+      <button class="hdr-btn" onclick="toggleStats()" id="statsBtn">통계</button>
       <button class="hdr-btn" onclick="openMenu()">메뉴</button>
     </div>
   </div>
@@ -345,7 +391,20 @@ input[type="file"] { display:none; }
 <!-- TABS -->
 <div class="tabs" id="tabs"></div>
 
-<!-- QUICK INPUT -->
+<div class="shortcut-bar" id="shortcutBar">
+  <span class="sk"><kbd>N</kbd> 추가</span>
+  <span class="sk"><kbd>1</kbd>~<kbd>4</kbd> 탭</span>
+  <span class="sk"><kbd>T</kbd> 현금/이체</span>
+  <span class="sk"><kbd>Enter</kbd> 저장</span>
+  <span class="sk"><kbd>/</kbd> 검색</span>
+  <span class="sk"><kbd>S</kbd> 통계</span>
+  <span class="sk"><kbd>Esc</kbd> 닫기</span>
+  <span class="sk"><kbd>Ctrl+E</kbd> 내보내기</span>
+  <span class="sk"><kbd>?</kbd> 도움말</span>
+</div>
+
+<div class="main-area">
+<div class="input-col">
 <button class="qi-toggle" id="qiToggle" onclick="toggleInput()">+ 하객 추가</button>
 <div class="qinput collapsed" id="qinput">
   <div class="qi-name-row">
@@ -364,6 +423,8 @@ input[type="file"] { display:none; }
   <div class="qi-saved" id="qiSaved"></div>
   <button class="qi-save" id="qiSave" onclick="quickSave()">저장</button>
 </div>
+</div>
+<div class="list-col">
 
 <!-- SEARCH -->
 <div class="search-wrap">
@@ -375,6 +436,8 @@ input[type="file"] { display:none; }
 
 <!-- STATS VIEW -->
 <div class="stats" id="statsView"></div>
+</div>
+</div>
 
 <!-- BOTTOM BAR -->
 <div class="bbar">
@@ -675,12 +738,13 @@ function switchView(v) {
   view = v;
   document.getElementById('glist').style.display = v==='list'?'':'none';
   document.getElementById('statsView').style.display = v==='stats'?'block':'none';
-  document.getElementById('qiToggle').style.display = v==='list'?'':'none';
-  document.getElementById('qinput').style.display = v==='list'?'':'none';
+  document.querySelector('.input-col').style.display = v==='list'?'':'none';
   document.querySelector('.search-wrap').style.display = v==='list'?'':'none';
   document.querySelectorAll('.bb-item').forEach(el=>el.classList.toggle('on',el.dataset.v===v));
+  document.getElementById('statsBtn').textContent = v==='stats'?'← 목록':'통계';
   if(v==='stats') renderStats();
 }
+function toggleStats() { switchView(view==='stats'?'list':'stats'); }
 
 // === STATS ===
 function renderStats() {
@@ -788,6 +852,36 @@ function doReset(){
 }
 
 function renderAll(){renderTabs();renderMiniSum();renderList();renderGroups();renderAmounts();}
+
+function toggleShortcuts() {
+  document.getElementById('shortcutBar').classList.toggle('show');
+}
+
+document.addEventListener('keydown', function(e) {
+  const tag = e.target.tagName;
+  const inInput = tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+  if(e.key==='Escape') {
+    if(document.getElementById('editModal').classList.contains('show')){closeModal('editModal');return;}
+    if(document.getElementById('menuModal').classList.contains('show')){closeModal('menuModal');return;}
+    if(inputOpen){toggleInput();return;}
+    if(inInput){e.target.blur();return;}
+    return;
+  }
+  if(e.key==='Enter'&&inputOpen&&inInput) {
+    const panel=document.getElementById('qinput');
+    if(panel.contains(e.target)){e.preventDefault();quickSave();return;}
+  }
+  if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){e.preventDefault();doExport();return;}
+  if(inInput) return;
+  if(e.key==='n'||e.key==='N'){if(!inputOpen)toggleInput();else document.getElementById('qiName').focus();return;}
+  if(e.key>='1'&&e.key<='4'){switchTab(TABS[parseInt(e.key)-1]);return;}
+  if(e.key==='/'){e.preventDefault();document.getElementById('searchInput').focus();return;}
+  if(e.key==='t'||e.key==='T'){if(inputOpen)setPayType(payType==='cash'?'transfer':'cash');return;}
+  if(e.key==='s'||e.key==='S'){toggleStats();return;}
+  if(e.key==='?'){toggleShortcuts();return;}
+});
+
+if(window.innerWidth>=768) document.getElementById('shortcutBar').classList.add('show');
 renderAll();
 </script>
 </body>
