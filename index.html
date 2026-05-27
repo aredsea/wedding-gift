@@ -508,6 +508,7 @@ input[type="file"] { display:none; }
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
 const TABS = ['groom','bride','groomParent','brideParent'];
 const TNAME = { groom:'신랑', bride:'신부', groomParent:'신랑 부모님', brideParent:'신부 부모님' };
@@ -822,25 +823,167 @@ function handleImport(ev){
   r.readAsArrayBuffer(f);ev.target.value='';
 }
 
-function doExport(){
+async function doExport(){
   closeModal('menuModal');
-  const wb=XLSX.utils.book_new();
+  try{
+  const wb=new ExcelJS.Workbook();
+  const HC='5B5EA6',LC='EEEEF5',BC='D1D1D6',WH='FFFFFF';
+  const BD={top:{style:'thin',color:{argb:BC}},left:{style:'thin',color:{argb:BC}},bottom:{style:'thin',color:{argb:BC}},right:{style:'thin',color:{argb:BC}}};
+  const BD2={top:{style:'thin',color:{argb:'AAAAAA'}},left:{style:'thin',color:{argb:'AAAAAA'}},bottom:{style:'thin',color:{argb:'AAAAAA'}},right:{style:'thin',color:{argb:'AAAAAA'}}};
+  const CEN={horizontal:'center',vertical:'middle'};
+
   for(const k of TABS){
-    const list=data[k], rows=[['번호','구분','이름','현금','계좌이체','참석 예상','결혼식 참석','감사 인사','비고']];
-    list.forEach((g,i)=>rows.push([i+1,g.group||'',g.name||'',g.cash||0,g.transfer||0,g.expected?'ㅇ':'',g.attended?'ㅇ':'',g.thanked?'ㅇ':'',g.note||'']));
-    const ws=XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols']=[{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10},{wch:12},{wch:10},{wch:20}];
-    XLSX.utils.book_append_sheet(wb,ws,SNAME[k]);
+    const list=data[k],ws=wb.addWorksheet(SNAME[k]);
+    ws.columns=[{width:7},{width:12},{width:12},{width:14},{width:14},{width:12},{width:13},{width:12},{width:22}];
+
+    // title
+    ws.mergeCells('A1:I2');
+    const tc=ws.getCell('A1');
+    tc.value='\u{1F3DB} '+SNAME[k];
+    tc.font={bold:true,size:18,color:{argb:'2D2D3F'}};
+    tc.alignment={horizontal:'center',vertical:'middle'};
+    tc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'F0F0F8'}};
+    ws.getRow(1).height=24;ws.getRow(2).height=24;
+
+    // summary
+    const cash=list.reduce((s,g)=>(g.cash||0)+s,0);
+    const tr=list.reduce((s,g)=>(g.transfer||0)+s,0);
+    const n=list.length,exp=list.filter(g=>g.expected).length;
+    const att=list.filter(g=>g.attended).length,thk=list.filter(g=>g.thanked).length;
+    const sH=['축의금 합계','현금 합계','계좌이체 합계','참석 예상','결혼식 참석','감사 인사'];
+    const sV=[cash+tr,cash,tr,exp+' / '+(n||100),att+' / '+(n||100),thk+' / '+(n||100)];
+    for(let i=0;i<6;i++){
+      const hc=ws.getCell(4,i+1);
+      hc.value=sH[i];hc.font={bold:true,size:9,color:{argb:'444444'}};
+      hc.fill={type:'pattern',pattern:'solid',fgColor:{argb:LC}};
+      hc.alignment=CEN;hc.border=BD2;
+      const vc=ws.getCell(5,i+1);
+      vc.value=sV[i];vc.font={bold:true,size:12};
+      vc.alignment=CEN;vc.border=BD2;
+      if(i<3){vc.numFmt='#,##0';}
+    }
+    ws.getRow(4).height=22;ws.getRow(5).height=28;
+
+    // note
+    ws.mergeCells('A7:I7');
+    ws.getCell('A7').value='*추가할 내용이 있을 경우, 맨 아래 줄에 입력하시면 자동으로 표가 연장됩니다.';
+    ws.getCell('A7').font={size:9,color:{argb:'999999'},italic:true};
+
+    // data headers
+    const hdr=['번호','구분','이름','현금','계좌이체','참석 예상','결혼식 참석','감사 인사','비고'];
+    for(let i=0;i<9;i++){
+      const c=ws.getCell(9,i+1);c.value=hdr[i];
+      c.font={bold:true,size:10,color:{argb:WH}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:HC}};
+      c.alignment=CEN;c.border=BD;
+    }
+    ws.getRow(9).height=28;
+    ws.autoFilter='A9:I9';
+    ws.views=[{state:'frozen',xSplit:0,ySplit:9}];
+
+    // data rows
+    list.forEach((g,idx)=>{
+      const r=10+idx;
+      const rv=[idx+1,g.group||'',g.name||'',g.cash||0,g.transfer||0,g.expected?'ㅇ':'',g.attended?'ㅇ':'',g.thanked?'ㅇ':'',g.note||''];
+      for(let i=0;i<9;i++){
+        const c=ws.getCell(r,i+1);c.value=rv[i];c.border=BD;c.alignment=CEN;
+        if(i===3||i===4){c.numFmt='#,##0';c.alignment={horizontal:'right',vertical:'middle'};}
+        if(i===2||i===8)c.alignment={horizontal:'left',vertical:'middle'};
+        if(idx%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'F8F8FC'}};
+      }
+      ws.getRow(r).height=22;
+    });
+
+    // empty extension rows
+    const end=10+list.length;
+    for(let r=end;r<end+12;r++){
+      for(let i=0;i<9;i++){const c=ws.getCell(r,i+1);c.border=BD;c.alignment=CEN;}
+      ws.getCell(r,1).value=list.length+(r-end)+1;
+      ws.getRow(r).height=22;
+    }
   }
+
+  // summary sheet
+  const sws=wb.addWorksheet('축의금 합계');
+  sws.columns=[{width:18},{width:16},{width:16},{width:16},{width:10}];
+  sws.mergeCells('A1:E2');
+  const stc=sws.getCell('A1');
+  stc.value='\u{1F4CA} 전체 축의금 합계';
+  stc.font={bold:true,size:18,color:{argb:'2D2D3F'}};
+  stc.alignment={horizontal:'center',vertical:'middle'};
+  stc.fill={type:'pattern',pattern:'solid',fgColor:{argb:'F0F0F8'}};
+  sws.getRow(1).height=24;sws.getRow(2).height=24;
+
+  const shdr=['구분','축의금 합계','현금 합계','계좌이체 합계','인원'];
+  for(let i=0;i<5;i++){
+    const c=sws.getCell(4,i+1);c.value=shdr[i];
+    c.font={bold:true,size:10,color:{argb:WH}};
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:HC}};
+    c.alignment=CEN;c.border=BD;
+  }
+  sws.getRow(4).height=28;
+
+  let gC=0,gT=0,gN=0;
+  TABS.forEach((k,idx)=>{
+    const l=data[k],c=l.reduce((s,g)=>(g.cash||0)+s,0),t=l.reduce((s,g)=>(g.transfer||0)+s,0);
+    gC+=c;gT+=t;gN+=l.length;
+    const r=5+idx,rv=[TNAME[k],c+t,c,t,l.length];
+    for(let i=0;i<5;i++){
+      const cl=sws.getCell(r,i+1);cl.value=rv[i];cl.border=BD;cl.alignment=CEN;
+      if(i>=1&&i<=3)cl.numFmt='#,##0';
+      if(idx%2===1)cl.fill={type:'pattern',pattern:'solid',fgColor:{argb:'F8F8FC'}};
+    }
+    sws.getRow(r).height=24;
+  });
+
+  // total row
+  const tR=['합계',gC+gT,gC,gT,gN];
+  for(let i=0;i<5;i++){
+    const c=sws.getCell(9,i+1);c.value=tR[i];c.border=BD;
+    c.font={bold:true,size:12};c.alignment=CEN;
+    if(i>=1&&i<=3)c.numFmt='#,##0';
+    c.fill={type:'pattern',pattern:'solid',fgColor:{argb:LC}};
+  }
+  sws.getRow(9).height=28;
+
+  // group breakdown
   const all=[...data.groom,...data.bride,...data.groomParent,...data.brideParent];
-  const sr=[['전체 축의금 합계'],['구분','축의금 합계','현금 합계','계좌이체 합계','인원']];
-  for(const k of TABS){const l=data[k],c=l.reduce((s,g)=>(g.cash||0)+s,0),t=l.reduce((s,g)=>(g.transfer||0)+s,0);sr.push([TNAME[k],c+t,c,t,l.length]);}
-  const ac=all.reduce((s,g)=>(g.cash||0)+s,0),at=all.reduce((s,g)=>(g.transfer||0)+s,0);
-  sr.push(['합계',ac+at,ac,at,all.length]);
-  const sws=XLSX.utils.aoa_to_sheet(sr);sws['!cols']=[{wch:18},{wch:15},{wch:15},{wch:15},{wch:8}];
-  XLSX.utils.book_append_sheet(wb,sws,'축의금 합계');
+  const gm={};
+  all.forEach(g=>{const gk=g.group||'미분류';if(!gm[gk])gm[gk]={n:0,c:0,t:0};gm[gk].n++;gm[gk].c+=(g.cash||0);gm[gk].t+=(g.transfer||0);});
+  const grps=Object.entries(gm).sort((a,b)=>(b[1].c+b[1].t)-(a[1].c+a[1].t));
+  if(grps.length){
+    sws.mergeCells('A11:E11');
+    sws.getCell('A11').value='구분별 현황';
+    sws.getCell('A11').font={bold:true,size:14,color:{argb:'2D2D3F'}};
+    sws.getRow(11).height=30;
+    const gh=['구분','축의금 합계','현금','계좌이체','인원'];
+    for(let i=0;i<5;i++){
+      const c=sws.getCell(12,i+1);c.value=gh[i];
+      c.font={bold:true,size:10,color:{argb:WH}};
+      c.fill={type:'pattern',pattern:'solid',fgColor:{argb:HC}};
+      c.alignment=CEN;c.border=BD;
+    }
+    sws.getRow(12).height=26;
+    grps.forEach(([gk,v],idx)=>{
+      const r=13+idx,rv=[gk,v.c+v.t,v.c,v.t,v.n];
+      for(let i=0;i<5;i++){
+        const c=sws.getCell(r,i+1);c.value=rv[i];c.border=BD;c.alignment=CEN;
+        if(i>=1&&i<=3)c.numFmt='#,##0';
+        if(idx%2===1)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'F8F8FC'}};
+      }
+      sws.getRow(r).height=22;
+    });
+  }
+
+  const buf=await wb.xlsx.writeBuffer();
+  const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;
   const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-  XLSX.writeFile(wb,`축의금_정리_${ds}.xlsx`);toast('내보내기 완료');
+  a.download=`축의금_정리_${ds}.xlsx`;a.click();
+  URL.revokeObjectURL(url);
+  toast('내보내기 완료');
+  }catch(err){console.error(err);toast('내보내기 실패');}
 }
 
 function doReset(){
