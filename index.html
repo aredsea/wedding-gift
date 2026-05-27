@@ -103,6 +103,16 @@ body {
 .qi-name:focus { border-color:var(--primary); background:white; }
 .qi-name::placeholder { color:#C7C7CC; }
 
+/* input tab selector */
+.qi-tabs { display:flex; gap:0; margin-bottom:10px; border-radius:10px; overflow:hidden; border:1.5px solid var(--border); }
+.qi-tab {
+  flex:1; padding:8px 0; text-align:center; font-size:12px; font-weight:600;
+  border:none; cursor:pointer; background:white; color:var(--text2);
+  transition: all 0.12s;
+}
+.qi-tab + .qi-tab { border-left:0.5px solid var(--border); }
+.qi-tab.on { background:var(--primary); color:white; }
+
 /* group chips */
 .qi-groups { display:flex; gap:5px; margin-bottom:12px; overflow-x:auto; padding-bottom:2px; }
 .qi-groups::-webkit-scrollbar { display:none; }
@@ -407,6 +417,7 @@ input[type="file"] { display:none; }
 <div class="input-col">
 <button class="qi-toggle" id="qiToggle" onclick="toggleInput()">+ 하객 추가</button>
 <div class="qinput collapsed" id="qinput">
+  <div class="qi-tabs" id="qiTabs"></div>
   <div class="qi-name-row">
     <input type="text" class="qi-name" id="qiName" placeholder="이름" autocomplete="off">
   </div>
@@ -544,7 +555,7 @@ function renderTabs() {
     return `<button class="tab${k===cur?' active':''}" onclick="switchTab('${k}')">${TNAME[k]}<br><span class="cnt">${n}명</span></button>`;
   }).join('');
 }
-function switchTab(k) { cur=k; renderTabs(); renderMiniSum(); renderList(); }
+function switchTab(k) { cur=k; renderTabs(); renderQiTabs(); renderMiniSum(); renderList(); }
 
 // === MINI SUMMARY ===
 function renderMiniSum() {
@@ -571,6 +582,15 @@ function toggleInput() {
     btn.classList.remove('open');
   }
 }
+
+let qiTab = cur;
+function renderQiTabs() {
+  qiTab = cur;
+  document.getElementById('qiTabs').innerHTML = TABS.map(k =>
+    `<button class="qi-tab${k===qiTab?' on':''}" onclick="pickQiTab('${k}')">${TNAME[k]}</button>`
+  ).join('');
+}
+function pickQiTab(k) { qiTab=k; document.querySelectorAll('.qi-tab').forEach(el=>el.classList.toggle('on',el.textContent===TNAME[k])); }
 
 function renderGroups() {
   document.getElementById('qiGroups').innerHTML = GROUPS.map(g =>
@@ -614,12 +634,12 @@ function quickSave() {
     note: ''
   };
 
-  data[cur].push(guest);
+  data[qiTab].push(guest);
   save();
 
   // flash saved message
   const msg = document.getElementById('qiSaved');
-  msg.textContent = `${name} ${fmt(amount)} 저장`;
+  msg.textContent = `[${TNAME[qiTab]}] ${name} ${fmt(amount)} 저장`;
   msg.classList.add('show');
   setTimeout(()=>msg.classList.remove('show'), 1800);
 
@@ -994,7 +1014,7 @@ function doReset(){
   }
 }
 
-function renderAll(){renderTabs();renderMiniSum();renderList();renderGroups();renderAmounts();}
+function renderAll(){renderTabs();renderQiTabs();renderMiniSum();renderList();renderGroups();renderAmounts();}
 
 function toggleShortcuts() {
   document.getElementById('shortcutBar').classList.toggle('show');
