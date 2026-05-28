@@ -703,13 +703,15 @@ let roomCode = localStorage.getItem('roomCode') || '';
 let isOnline = false;
 let serverUrl = '';
 
+const DEFAULT_SERVER = 'http://158.179.175.15:3000';
+
 function detectServerUrl() {
-  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.port) {
-    return location.origin;
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    if (location.port === '3000') return location.origin;
   }
   const saved = localStorage.getItem('serverUrl');
   if (saved) return saved;
-  return '';
+  return DEFAULT_SERVER;
 }
 
 function load() {
@@ -790,12 +792,6 @@ function connectToRoom(code) {
 
 async function createRoom() {
   serverUrl = detectServerUrl();
-  if (!serverUrl) {
-    const url = prompt('서버 주소를 입력하세요\n예: https://your-server.com:3000');
-    if (!url) return;
-    serverUrl = url.replace(/\/+$/, '');
-    localStorage.setItem('serverUrl', serverUrl);
-  }
   try {
     const res = await fetch(serverUrl + '/api/room', {
       method: 'POST',
@@ -816,12 +812,6 @@ function joinRoom() {
   const code = document.getElementById('roomCodeInput').value.replace(/[^0-9]/g, '');
   if (code.length !== 6) { toast('6자리 방 코드를 입력하세요'); return; }
   serverUrl = detectServerUrl();
-  if (!serverUrl) {
-    const url = prompt('서버 주소를 입력하세요\n예: https://your-server.com:3000');
-    if (!url) return;
-    serverUrl = url.replace(/\/+$/, '');
-    localStorage.setItem('serverUrl', serverUrl);
-  }
   connectToRoom(code);
 }
 
