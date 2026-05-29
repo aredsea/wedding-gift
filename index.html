@@ -163,6 +163,12 @@ body {
 .gi-ck.on { background:var(--ok); border-color:var(--ok); color:white; box-shadow:0 2px 8px rgba(52,199,89,0.28); }
 .gi-ck.on b { display:block; }
 .gi-ck.on span { display:none; }
+.gi-ck.sel { font-size:11px; font-weight:700; padding:0 2px; }
+.gi-ck.sel.on { box-shadow:none; }
+.gi-ck.sel.s-go { background:var(--ok); border-color:var(--ok); color:white; }
+.gi-ck.sel.s-no { background:#fff0f0; border-color:var(--accent); color:var(--accent); }
+.gi-ck.sel.s-meal { background:var(--primary-bg); border-color:var(--primary-light); color:var(--primary); }
+.gi-ck.sel.s-gift { background:#fff3e0; border-color:#ff9500; color:#c75e00; }
 
 .empty {
   text-align:center; padding:60px 20px; color:var(--text3);
@@ -371,6 +377,33 @@ body {
   border:none; background:#FFF0F0; color:var(--accent);
   font-size:15px; font-weight:700; cursor:pointer; margin-top:10px;
 }
+
+/* === SEGMENTED CONTROL (edit modal) === */
+.seg {
+  display:flex; gap:0; border:2px solid var(--border);
+  border-radius:var(--radius-sm); overflow:hidden;
+}
+.seg-btn {
+  flex:1; padding:12px; text-align:center; border:none; cursor:pointer;
+  background:white; color:var(--text2); font-size:15px; font-weight:700;
+  transition:all 0.12s; border-left:2px solid var(--border);
+}
+.seg-btn:first-child { border-left:none; }
+.seg-btn.on { background:var(--primary); color:white; }
+
+/* === SIDE PICKER === */
+.side-pick { display:flex; gap:12px; }
+.side-btn {
+  flex:1; padding:28px 12px; border-radius:var(--radius);
+  border:2px solid var(--border); background:var(--card);
+  font-size:17px; font-weight:700; cursor:pointer; color:var(--text);
+  display:flex; flex-direction:column; align-items:center; gap:10px;
+  transition:all 0.15s;
+}
+.side-btn:active { transform:scale(0.96); }
+.side-btn .side-emoji { font-size:40px; }
+.side-btn.groom:hover { border-color:var(--groom); color:var(--groom); }
+.side-btn.bride:hover { border-color:var(--bride); color:var(--bride); }
 
 /* === STATS === */
 .stats { padding:12px 20px; display:none; padding-bottom:100px; }
@@ -621,7 +654,7 @@ input[type="file"] { display:none; }
 <!-- SHORTCUT GUIDE -->
 <div class="shortcut-bar" id="shortcutBar">
   <span class="sk"><kbd>N</kbd> 추가</span>
-  <span class="sk"><kbd>1</kbd>~<kbd>4</kbd> 탭</span>
+  <span class="sk"><kbd>1</kbd>~<kbd>3</kbd> 탭</span>
   <span class="sk"><kbd>T</kbd> 현금/이체</span>
   <span class="sk"><kbd>Enter</kbd> 저장</span>
   <span class="sk"><kbd>/</kbd> 검색</span>
@@ -699,9 +732,21 @@ input[type="file"] { display:none; }
       </div>
     </div>
     <div class="m-section">
-      <div class="m-toggle-row"><span>참석 예상</span><button class="tgl" id="mExpected" onclick="this.classList.toggle('on')"></button></div>
-      <div class="m-toggle-row"><span>결혼식 참석</span><button class="tgl" id="mAttended" onclick="this.classList.toggle('on')"></button></div>
-      <div class="m-toggle-row"><span>감사 인사</span><button class="tgl" id="mThanked" onclick="this.classList.toggle('on')"></button></div>
+      <div class="m-toggle-row"><span>참석</span><button class="tgl" id="mAttend" onclick="this.classList.toggle('on')"></button></div>
+    </div>
+    <div class="m-section">
+      <div class="m-label">결혼식</div>
+      <div class="seg" id="mCeremony">
+        <button class="seg-btn" data-v="참석" onclick="segPick(this)">참석</button>
+        <button class="seg-btn" data-v="불참" onclick="segPick(this)">불참</button>
+      </div>
+    </div>
+    <div class="m-section">
+      <div class="m-label">감사 인사</div>
+      <div class="seg" id="mThanks">
+        <button class="seg-btn" data-v="식권" onclick="segPick(this)">식권</button>
+        <button class="seg-btn" data-v="답례품" onclick="segPick(this)">답례품</button>
+      </div>
     </div>
     <div class="m-section">
       <div class="m-label">비고</div>
@@ -748,6 +793,21 @@ input[type="file"] { display:none; }
   </div>
 </div>
 
+<!-- SIDE PICKER MODAL -->
+<div class="modal-bg" id="sideModal">
+  <div class="modal">
+    <div class="m-head">
+      <button class="m-btn m-close" id="sideCancel" onclick="closeModal('sideModal')">취소</button>
+      <h2>어느 쪽인가요?</h2><span></span>
+    </div>
+    <div class="m-label" id="sideHint" style="margin-bottom:14px">신랑측 / 신부측 중 선택하세요. (부모님 포함)</div>
+    <div class="side-pick">
+      <button class="side-btn groom" onclick="pickSide('groom')"><span class="side-emoji">🤵</span>신랑측</button>
+      <button class="side-btn bride" onclick="pickSide('bride')"><span class="side-emoji">👰</span>신부측</button>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleImport(event)">
 <div class="toast" id="toast"></div>
 
@@ -755,16 +815,57 @@ input[type="file"] { display:none; }
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
-const TABS = ['groom','bride','groomParent','brideParent'];
-const TNAME = { groom:'신랑', bride:'신부', groomParent:'신랑 부모님', brideParent:'신부 부모님' };
-const SNAME = { groom:'신랑 하객 리스트', bride:'신부 하객 리스트', groomParent:'신랑 부모님 하객 리스트', brideParent:'신부 부모님 하객 리스트' };
+// All data buckets (always stored; only the room's side is shown)
+const ALL_TABS = ['groom','groomParent','groomUnknown','bride','brideParent','brideUnknown'];
+const TNAME = {
+  groom:'신랑', groomParent:'신랑 부모님', groomUnknown:'모름',
+  bride:'신부', brideParent:'신부 부모님', brideUnknown:'모름'
+};
+const SNAME = {
+  groom:'신랑 하객 리스트', groomParent:'신랑 부모님 하객 리스트', groomUnknown:'신랑측 모름 리스트',
+  bride:'신부 하객 리스트', brideParent:'신부 부모님 하객 리스트', brideUnknown:'신부측 모름 리스트'
+};
+const SIDE_TABS = {
+  groom: ['groom','groomParent','groomUnknown'],
+  bride: ['bride','brideParent','brideUnknown']
+};
 const GROUPS = ['가족','친척','회사','대학교','고등학교','중학교','초등학교','기타'];
 const AMTS = [30000,50000,100000,150000,200000,300000,500000,700000,1000000];
 
-let cur = 'groom', view = 'list', editId = null;
+let side = localStorage.getItem('side') || 'groom';
+let cur = SIDE_TABS[side][0], view = 'list', editId = null;
 let payType = 'cash', selAmt = 0, selGroup = '';
 let inputOpen = false;
 let data = load();
+
+function tabsForSide() { return SIDE_TABS[side] || SIDE_TABS.groom; }
+function setSide(s) {
+  side = (s === 'bride') ? 'bride' : 'groom';
+  localStorage.setItem('side', side);
+  data.side = side;
+  if (!tabsForSide().includes(cur)) cur = tabsForSide()[0];
+}
+
+// Normalize a data object: ensure all buckets exist + migrate guest fields
+function migrateGuest(g) {
+  return {
+    id: g.id || uid(),
+    name: g.name || '', group: g.group || '',
+    cash: g.cash || 0, transfer: g.transfer || 0,
+    attend:   g.attend   !== undefined ? !!g.attend : !!g.expected,
+    ceremony: g.ceremony !== undefined ? g.ceremony : (g.attended ? '참석' : ''),
+    thanks:   g.thanks   !== undefined ? g.thanks   : (g.thanked  ? '답례품' : ''),
+    note: g.note || ''
+  };
+}
+function normalize(d) {
+  d = d || {};
+  for (const k of ALL_TABS) {
+    d[k] = Array.isArray(d[k]) ? d[k].map(migrateGuest) : [];
+  }
+  if (d.side === 'groom' || d.side === 'bride') side = d.side;
+  return d;
+}
 
 // === SYNC ===
 let socket = null;
@@ -784,8 +885,8 @@ function detectServerUrl() {
 }
 
 function load() {
-  try { const s = localStorage.getItem('weddingGifts'); if(s) return JSON.parse(s); } catch(e){}
-  return { groom:[], bride:[], groomParent:[], brideParent:[] };
+  try { const s = localStorage.getItem('weddingGifts'); if(s) return normalize(JSON.parse(s)); } catch(e){}
+  return normalize({ side });
 }
 function save() {
   localStorage.setItem('weddingGifts', JSON.stringify(data));
@@ -817,20 +918,30 @@ function connectToRoom(code) {
       roomCode = code;
       isOnline = true;
       localStorage.setItem('roomCode', code);
-      data = res.data;
-      localStorage.setItem('weddingGifts', JSON.stringify(data));
-      renderAll();
-      updateConnBadge('', `· ${res.online}명`);
+      const hadSide = (res.data && (res.data.side === 'groom' || res.data.side === 'bride'));
+      data = normalize(res.data);
       document.getElementById('roomCodeDisplay').style.display = 'block';
       document.getElementById('roomCodeText').textContent = code;
       document.getElementById('menuLeave').style.display = '';
       document.getElementById('roomScreen').classList.add('hidden');
-      toast('방에 접속했습니다');
+      updateConnBadge('', `· ${res.online}명`);
+      const finishJoin = () => {
+        localStorage.setItem('weddingGifts', JSON.stringify(data));
+        cur = tabsForSide()[0];
+        renderAll();
+        toast('방에 접속했습니다');
+      };
+      if (hadSide) { setSide(res.data.side); finishJoin(); }
+      else {
+        askSide((s) => { setSide(s); save(); finishJoin(); },
+          { forced:true, hint:'이 방의 측 정보가 없습니다. 신랑측/신부측 중 선택하세요.' });
+      }
     });
   });
 
   socket.on('data-sync', (newData) => {
-    data = newData;
+    data = normalize(newData);
+    if (newData && (newData.side === 'groom' || newData.side === 'bride')) setSide(newData.side);
     localStorage.setItem('weddingGifts', JSON.stringify(data));
     renderAll();
   });
@@ -861,7 +972,8 @@ function connectToRoom(code) {
   socket.on('reconnect', () => {
     socket.emit('join-room', roomCode, (res) => {
       if (res && !res.error) {
-        data = res.data;
+        data = normalize(res.data);
+        if (res.data && (res.data.side === 'groom' || res.data.side === 'bride')) setSide(res.data.side);
         localStorage.setItem('weddingGifts', JSON.stringify(data));
         renderAll();
         updateConnBadge('', `· ${res.online}명`);
@@ -870,22 +982,25 @@ function connectToRoom(code) {
   });
 }
 
-async function createRoom() {
-  serverUrl = detectServerUrl();
-  try {
-    const res = await fetch(serverUrl + '/api/room', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ data })
-    });
-    const json = await res.json();
-    if (json.code) {
-      connectToRoom(json.code);
+function createRoom() {
+  askSide(async (s) => {
+    setSide(s);
+    serverUrl = detectServerUrl();
+    try {
+      const res = await fetch(serverUrl + '/api/room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { side: s } })
+      });
+      const json = await res.json();
+      if (json.code) {
+        connectToRoom(json.code);
+      }
+    } catch (e) {
+      toast('서버 연결 실패');
+      console.error(e);
     }
-  } catch (e) {
-    toast('서버 연결 실패');
-    console.error(e);
-  }
+  });
 }
 
 function joinRoom() {
@@ -896,8 +1011,29 @@ function joinRoom() {
 }
 
 function goOffline() {
-  document.getElementById('roomScreen').classList.add('hidden');
-  updateConnBadge('local', '오프라인');
+  askSide((s) => {
+    setSide(s);
+    save();
+    cur = tabsForSide()[0];
+    renderAll();
+    document.getElementById('roomScreen').classList.add('hidden');
+    updateConnBadge('local', '오프라인');
+  });
+}
+
+// === SIDE PICKER ===
+let sideCallback = null;
+function askSide(cb, opts) {
+  opts = opts || {};
+  sideCallback = cb;
+  document.getElementById('sideHint').textContent = opts.hint || '신랑측 / 신부측 중 선택하세요. (부모님 포함)';
+  document.getElementById('sideCancel').style.display = opts.forced ? 'none' : '';
+  showModal('sideModal');
+}
+function pickSide(s) {
+  closeModal('sideModal');
+  const cb = sideCallback; sideCallback = null;
+  if (cb) cb(s);
 }
 
 function leaveRoom() {
@@ -1055,7 +1191,7 @@ function uid() { return 'g'+Date.now()+'_'+Math.random().toString(36).slice(2,6)
 
 // === TABS ===
 function renderTabs() {
-  document.getElementById('tabs').innerHTML = TABS.map(k => {
+  document.getElementById('tabs').innerHTML = tabsForSide().map(k => {
     const n = data[k].length;
     return `<button class="tab${k===cur?' active':''}" onclick="switchTab('${k}')">${TNAME[k]}<br><span class="cnt">${n}명</span></button>`;
   }).join('');
@@ -1066,7 +1202,7 @@ function switchTab(k) { cur=k; renderTabs(); renderQiTabs(); renderMiniSum(); re
 function renderMiniSum() {
   const list = data[cur];
   const total = list.reduce((s,g)=>(g.cash||0)+(g.transfer||0)+s,0);
-  const att = list.filter(g=>g.attended).length;
+  const att = list.filter(g=>g.attend).length;
   document.getElementById('miniSum').innerHTML =
     `합계 <b>${fmt(total)}</b>&nbsp;&middot;&nbsp;${list.length}명&nbsp;&middot;&nbsp;참석 ${att}명`;
 }
@@ -1095,11 +1231,11 @@ function closeSheet() {
 let qiTab = cur;
 function renderQiTabs() {
   qiTab = cur;
-  document.getElementById('qiTabs').innerHTML = TABS.map(k =>
-    `<button class="qi-tab${k===qiTab?' on':''}" onclick="pickQiTab('${k}')">${TNAME[k]}</button>`
+  document.getElementById('qiTabs').innerHTML = tabsForSide().map(k =>
+    `<button class="qi-tab${k===qiTab?' on':''}" data-k="${k}" onclick="pickQiTab('${k}')">${TNAME[k]}</button>`
   ).join('');
 }
-function pickQiTab(k) { qiTab=k; document.querySelectorAll('.qi-tab').forEach(el=>el.classList.toggle('on',el.textContent===TNAME[k])); }
+function pickQiTab(k) { qiTab=k; document.querySelectorAll('.qi-tab').forEach(el=>el.classList.toggle('on',el.dataset.k===k)); }
 
 function renderGroups() {
   document.getElementById('qiGroups').innerHTML = GROUPS.map(g =>
@@ -1139,7 +1275,7 @@ function quickSave() {
     id: uid(), name, group: selGroup,
     cash: payType==='cash' ? amount : 0,
     transfer: payType==='transfer' ? amount : 0,
-    expected: true, attended: true, thanked: false,
+    attend: true, ceremony: '참석', thanks: '',
     note: ''
   };
 
@@ -1179,30 +1315,61 @@ function renderList() {
         ${g.note?`<div class="gi-note">${esc(g.note)}</div>`:''}
       </div>
       <div class="gi-checks">
-        <div class="gi-ck${g.expected?' on':''}" onclick="event.stopPropagation();tog('${g.id}','expected')"><b>&#10003;</b><span>예상</span></div>
-        <div class="gi-ck${g.attended?' on':''}" onclick="event.stopPropagation();tog('${g.id}','attended')"><b>&#10003;</b><span>참석</span></div>
-        <div class="gi-ck${g.thanked?' on':''}" onclick="event.stopPropagation();tog('${g.id}','thanked')"><b>&#10003;</b><span>감사</span></div>
+        <div class="gi-ck${g.attend?' on':''}" onclick="event.stopPropagation();tog('${g.id}','attend')"><b>&#10003;</b><span>참석</span></div>
+        ${ckSel(g,'ceremony','예식',{'참석':'s-go','불참':'s-no'})}
+        ${ckSel(g,'thanks','감사',{'식권':'s-meal','답례품':'s-gift'})}
       </div>
     </div>`;
   }).join('');
 }
 
+// selection check cell (cycles: '' -> opt1 -> opt2 -> '')
+function ckSel(g, field, hint, opts) {
+  const v = g[field] || '';
+  const cls = v ? (' sel on ' + (opts[v]||'')) : ' sel';
+  const label = v ? v : hint;
+  return `<div class="gi-ck${cls}" onclick="event.stopPropagation();cycle('${g.id}','${field}',${JSON.stringify(Object.keys(opts)).replace(/"/g,'&quot;')})">${esc(label)}</div>`;
+}
+
+function findGuest(id) {
+  for(const k of ALL_TABS) { const g=data[k].find(x=>x.id===id); if(g) return g; }
+  return null;
+}
 function tog(id,field) {
-  for(const k of TABS) {
-    const g=data[k].find(x=>x.id===id);
-    if(g) { g[field]=!g[field]; break; }
-  }
+  const g=findGuest(id);
+  if(g){ g[field]=!g[field]; save(); renderList(); renderMiniSum(); }
+}
+function cycle(id,field,opts) {
+  const g=findGuest(id);
+  if(!g) return;
+  const cur=g[field]||'';
+  const i=opts.indexOf(cur);
+  g[field] = (i===opts.length-1) ? '' : opts[i+1];
   save(); renderList(); renderMiniSum();
 }
 
 // === EDIT MODAL ===
+function segSet(groupId, val) {
+  document.querySelectorAll('#'+groupId+' .seg-btn').forEach(b =>
+    b.classList.toggle('on', b.dataset.v === val));
+}
+function segPick(btn) {
+  const on = btn.classList.contains('on');
+  btn.parentElement.querySelectorAll('.seg-btn').forEach(b=>b.classList.remove('on'));
+  if(!on) btn.classList.add('on');
+}
+function segVal(groupId) {
+  const el = document.querySelector('#'+groupId+' .seg-btn.on');
+  return el ? el.dataset.v : '';
+}
+
 function openEdit(id) {
   let guest=null, tab=null;
-  for(const k of TABS) { guest=data[k].find(x=>x.id===id); if(guest){tab=k;break;} }
+  for(const k of ALL_TABS) { guest=data[k].find(x=>x.id===id); if(guest){tab=k;break;} }
   if(!guest) return;
   editId = id;
 
-  document.getElementById('mTabs').innerHTML = TABS.map(k=>
+  document.getElementById('mTabs').innerHTML = tabsForSide().map(k=>
     `<button class="m-chip${k===tab?' on':''}" data-k="${k}" onclick="document.querySelectorAll('#mTabs .m-chip').forEach(e=>e.classList.remove('on'));this.classList.add('on')">${TNAME[k]}</button>`
   ).join('');
   document.getElementById('mGroups').innerHTML = GROUPS.map(g=>
@@ -1213,9 +1380,9 @@ function openEdit(id) {
   document.getElementById('mCash').value = guest.cash?guest.cash.toLocaleString():'';
   document.getElementById('mTransfer').value = guest.transfer?guest.transfer.toLocaleString():'';
   document.getElementById('mNote').value = guest.note||'';
-  document.getElementById('mExpected').classList.toggle('on',!!guest.expected);
-  document.getElementById('mAttended').classList.toggle('on',!!guest.attended);
-  document.getElementById('mThanked').classList.toggle('on',!!guest.thanked);
+  document.getElementById('mAttend').classList.toggle('on',!!guest.attend);
+  segSet('mCeremony', guest.ceremony||'');
+  segSet('mThanks', guest.thanks||'');
 
   showModal('editModal');
 }
@@ -1233,13 +1400,13 @@ function saveEdit() {
     id: editId, name, group,
     cash: parse(document.getElementById('mCash').value),
     transfer: parse(document.getElementById('mTransfer').value),
-    expected: document.getElementById('mExpected').classList.contains('on'),
-    attended: document.getElementById('mAttended').classList.contains('on'),
-    thanked: document.getElementById('mThanked').classList.contains('on'),
+    attend: document.getElementById('mAttend').classList.contains('on'),
+    ceremony: segVal('mCeremony'),
+    thanks: segVal('mThanks'),
     note: document.getElementById('mNote').value.trim()
   };
 
-  for(const k of TABS) {
+  for(const k of ALL_TABS) {
     const idx = data[k].findIndex(x=>x.id===editId);
     if(idx!==-1) {
       if(k===newTab) data[k][idx]=gd;
@@ -1252,7 +1419,7 @@ function saveEdit() {
 
 function deleteGuest() {
   if(!editId||!confirm('삭제하시겠습니까?')) return;
-  for(const k of TABS) {
+  for(const k of ALL_TABS) {
     const i=data[k].findIndex(x=>x.id===editId);
     if(i!==-1){data[k].splice(i,1);break;}
   }
@@ -1274,31 +1441,39 @@ function toggleStats() { switchView(view==='stats'?'list':'stats'); }
 
 // === STATS ===
 function renderStats() {
-  const all=[...data.groom,...data.bride,...data.groomParent,...data.brideParent];
+  const tabs=tabsForSide();
+  const all=tabs.flatMap(k=>data[k]);
   const total=all.reduce((s,g)=>(g.cash||0)+(g.transfer||0)+s,0);
   const cash=all.reduce((s,g)=>(g.cash||0)+s,0);
   const transfer=all.reduce((s,g)=>(g.transfer||0)+s,0);
-  const att=all.filter(g=>g.attended).length;
-  const thk=all.filter(g=>g.thanked).length;
-  const gt=[...data.groom,...data.groomParent];
-  const bt=[...data.bride,...data.brideParent];
-  const gtot=gt.reduce((s,g)=>(g.cash||0)+(g.transfer||0)+s,0);
-  const btot=bt.reduce((s,g)=>(g.cash||0)+(g.transfer||0)+s,0);
+  const att=all.filter(g=>g.attend).length;
+  const cerY=all.filter(g=>g.ceremony==='참석').length;
+  const cerN=all.filter(g=>g.ceremony==='불참').length;
+  const meal=all.filter(g=>g.thanks==='식권').length;
+  const gift=all.filter(g=>g.thanks==='답례품').length;
 
   const grpMap={};
   all.forEach(g=>{const k=g.group||'미분류';if(!grpMap[k])grpMap[k]={n:0,t:0};grpMap[k].n++;grpMap[k].t+=(g.cash||0)+(g.transfer||0);});
   const grps=Object.entries(grpMap).sort((a,b)=>b[1].t-a[1].t);
   const mx=grps.length?grps[0][1].t:1;
+  const sideColor = side==='bride'?'var(--bride)':'var(--groom)';
+  const sideName = side==='bride'?'신부측':'신랑측';
+
+  const tabCards=tabs.map(k=>{
+    const l=data[k], t=l.reduce((s,g)=>(g.cash||0)+(g.transfer||0)+s,0);
+    return `<div class="s-card"><div style="font-size:18px;font-weight:700;color:${sideColor}">${fmt(t)}</div><div class="s-sub">${TNAME[k]} ${l.length}명</div></div>`;
+  }).join('');
 
   document.getElementById('statsView').innerHTML=`
-    <div class="s-card"><div class="s-big">${fmt(total)}</div><div class="s-sub">전체 합계 &middot; 현금 ${fmt(cash)} / 이체 ${fmt(transfer)} &middot; ${all.length}명</div></div>
+    <div class="s-card"><div class="s-big">${fmt(total)}</div><div class="s-sub">${sideName} 합계 &middot; 현금 ${fmt(cash)} / 이체 ${fmt(transfer)} &middot; ${all.length}명</div></div>
+    <div class="s-row">${tabCards}</div>
     <div class="s-row">
-      <div class="s-card"><div style="font-size:20px;font-weight:700;color:var(--groom)">${fmt(gtot)}</div><div class="s-sub">신랑측 ${gt.length}명</div></div>
-      <div class="s-card"><div style="font-size:20px;font-weight:700;color:var(--bride)">${fmt(btot)}</div><div class="s-sub">신부측 ${bt.length}명</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700">${att}명</div><div class="s-sub">참석 / 총 ${all.length}명</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700">${cerY} / ${cerN}</div><div class="s-sub">결혼식 참석 / 불참</div></div>
     </div>
     <div class="s-row">
-      <div class="s-card"><div style="font-size:20px;font-weight:700">${all.length?Math.round(att/all.length*100):0}%</div><div class="s-sub">참석률 ${att}/${all.length}</div></div>
-      <div class="s-card"><div style="font-size:20px;font-weight:700">${all.length?Math.round(thk/all.length*100):0}%</div><div class="s-sub">감사인사 ${thk}/${all.length}</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700">${meal}명</div><div class="s-sub">식권</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700">${gift}명</div><div class="s-sub">답례품</div></div>
     </div>
     <div class="s-card"><h3>구분별</h3>${grps.map(([k,v])=>`
       <div class="s-bar"><div class="s-bar-top"><span>${esc(k)} (${v.n}명)</span><b>${fmt(v.t)}</b></div>
@@ -1322,8 +1497,12 @@ function handleImport(ev){
   r.onload=function(e){
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
-      const map={'신랑 하객 리스트':'groom','신부 하객 리스트':'bride','신랑 부모님 하객 리스트':'groomParent','신부 부모님 하객 리스트':'brideParent'};
-      const nd={groom:[],bride:[],groomParent:[],brideParent:[]};
+      const map={
+        '신랑 하객 리스트':'groom','신랑 부모님 하객 리스트':'groomParent','신랑측 모름 리스트':'groomUnknown',
+        '신부 하객 리스트':'bride','신부 부모님 하객 리스트':'brideParent','신부측 모름 리스트':'brideUnknown'
+      };
+      const nd={}; for(const k of ALL_TABS) nd[k]=[];
+      const pick=(h,...names)=>{for(const nm of names){const i=h.indexOf(nm);if(i>=0)return i;}return -1;};
       for(const[sn,k]of Object.entries(map)){
         const ws=wb.Sheets[sn]; if(!ws)continue;
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
@@ -1331,17 +1510,27 @@ function handleImport(ev){
         for(let i=0;i<rows.length;i++){if(rows[i]&&rows[i].some(c=>String(c).includes('이름'))){hr=i;break;}}
         if(hr===-1)continue;
         const h=rows[hr].map(x=>String(x).trim());
-        const ci={group:h.indexOf('구분'),name:h.indexOf('이름'),cash:h.indexOf('현금'),transfer:h.indexOf('계좌이체'),expected:h.indexOf('참석 예상'),attended:h.indexOf('결혼식 참석'),thanked:h.indexOf('감사 인사'),note:h.indexOf('비고')};
+        const ci={group:pick(h,'구분'),name:pick(h,'이름'),cash:pick(h,'현금'),transfer:pick(h,'계좌이체'),
+          attend:pick(h,'참석','참석 예상'),ceremony:pick(h,'결혼식','결혼식 참석'),thanks:pick(h,'감사 인사','감사'),note:pick(h,'비고')};
         for(let i=hr+1;i<rows.length;i++){
           const row=rows[i]; const nm=ci.name>=0?String(row[ci.name]||'').trim():'';
           if(!nm)continue;
-          nd[k].push({id:uid(),name:nm,group:ci.group>=0?String(row[ci.group]||'').trim():'',cash:ci.cash>=0?(parseInt(row[ci.cash])||0):0,transfer:ci.transfer>=0?(parseInt(row[ci.transfer])||0):0,expected:ci.expected>=0?String(row[ci.expected]).trim()==='ㅇ':false,attended:ci.attended>=0?String(row[ci.attended]).trim()==='ㅇ':false,thanked:ci.thanked>=0?String(row[ci.thanked]).trim()==='ㅇ':false,note:ci.note>=0?String(row[ci.note]||'').trim():''});
+          const cerRaw=ci.ceremony>=0?String(row[ci.ceremony]).trim():'';
+          const thRaw=ci.thanks>=0?String(row[ci.thanks]).trim():'';
+          nd[k].push({id:uid(),name:nm,
+            group:ci.group>=0?String(row[ci.group]||'').trim():'',
+            cash:ci.cash>=0?(parseInt(row[ci.cash])||0):0,
+            transfer:ci.transfer>=0?(parseInt(row[ci.transfer])||0):0,
+            attend:ci.attend>=0?String(row[ci.attend]).trim()==='ㅇ':false,
+            ceremony:cerRaw==='참석'||cerRaw==='불참'?cerRaw:(cerRaw==='ㅇ'?'참석':''),
+            thanks:thRaw==='식권'||thRaw==='답례품'?thRaw:(thRaw==='ㅇ'?'답례품':''),
+            note:ci.note>=0?String(row[ci.note]||'').trim():''});
         }
       }
       const tot=Object.values(nd).reduce((s,a)=>s+a.length,0);
       if(!tot){toast('가져올 데이터 없음');return;}
-      if(confirm(`${tot}명 가져오기. 기존 데이터 대체?\n확인=대체, 취소=추가`)){data=nd;}
-      else{for(const k of TABS)data[k]=[...data[k],...nd[k]];}
+      if(confirm(`${tot}명 가져오기. 기존 데이터 대체?\n확인=대체, 취소=추가`)){nd.side=side;data=nd;}
+      else{for(const k of ALL_TABS)data[k]=[...data[k],...nd[k]];}
       save();renderAll();toast(`${tot}명 가져오기 완료`);
     }catch(err){toast('파일 읽기 실패');console.error(err);}
   };
@@ -1357,9 +1546,10 @@ async function doExport(){
   const BD2={top:{style:'thin',color:{argb:'AAAAAA'}},left:{style:'thin',color:{argb:'AAAAAA'}},bottom:{style:'thin',color:{argb:'AAAAAA'}},right:{style:'thin',color:{argb:'AAAAAA'}}};
   const CEN={horizontal:'center',vertical:'middle'};
 
-  for(const k of TABS){
+  const EXP_TABS=tabsForSide();
+  for(const k of EXP_TABS){
     const list=data[k],ws=wb.addWorksheet(SNAME[k]);
-    ws.columns=[{width:7},{width:12},{width:12},{width:14},{width:14},{width:12},{width:13},{width:12},{width:22}];
+    ws.columns=[{width:7},{width:12},{width:12},{width:14},{width:14},{width:10},{width:14},{width:14},{width:22}];
     ws.mergeCells('A1:I2');
     const tc=ws.getCell('A1');
     tc.value='\u{1F3DB} '+SNAME[k];
@@ -1369,10 +1559,11 @@ async function doExport(){
     ws.getRow(1).height=24;ws.getRow(2).height=24;
     const cash=list.reduce((s,g)=>(g.cash||0)+s,0);
     const tr=list.reduce((s,g)=>(g.transfer||0)+s,0);
-    const n=list.length,exp=list.filter(g=>g.expected).length;
-    const att=list.filter(g=>g.attended).length,thk=list.filter(g=>g.thanked).length;
-    const sH=['축의금 합계','현금 합계','계좌이체 합계','참석 예상','결혼식 참석','감사 인사'];
-    const sV=[cash+tr,cash,tr,exp+' / '+(n||100),att+' / '+(n||100),thk+' / '+(n||100)];
+    const n=list.length,att=list.filter(g=>g.attend).length;
+    const cerY=list.filter(g=>g.ceremony==='참석').length,cerN=list.filter(g=>g.ceremony==='불참').length;
+    const meal=list.filter(g=>g.thanks==='식권').length,gift=list.filter(g=>g.thanks==='답례품').length;
+    const sH=['축의금 합계','현금 합계','계좌이체 합계','참석','결혼식(참석/불참)','감사(식권/답례품)'];
+    const sV=[cash+tr,cash,tr,att+' / '+(n||100),cerY+' / '+cerN,meal+' / '+gift];
     for(let i=0;i<6;i++){
       const hc=ws.getCell(4,i+1);
       hc.value=sH[i];hc.font={bold:true,size:9,color:{argb:'444444'}};
@@ -1387,7 +1578,7 @@ async function doExport(){
     ws.mergeCells('A7:I7');
     ws.getCell('A7').value='*추가할 내용이 있을 경우, 맨 아래 줄에 입력하시면 자동으로 표가 연장됩니다.';
     ws.getCell('A7').font={size:9,color:{argb:'999999'},italic:true};
-    const hdr=['번호','구분','이름','현금','계좌이체','참석 예상','결혼식 참석','감사 인사','비고'];
+    const hdr=['번호','구분','이름','현금','계좌이체','참석','결혼식','감사 인사','비고'];
     for(let i=0;i<9;i++){
       const c=ws.getCell(9,i+1);c.value=hdr[i];
       c.font={bold:true,size:10,color:{argb:WH}};
@@ -1399,7 +1590,7 @@ async function doExport(){
     ws.views=[{state:'frozen',xSplit:0,ySplit:9}];
     list.forEach((g,idx)=>{
       const r=10+idx;
-      const rv=[idx+1,g.group||'',g.name||'',g.cash||0,g.transfer||0,g.expected?'ㅇ':'',g.attended?'ㅇ':'',g.thanked?'ㅇ':'',g.note||''];
+      const rv=[idx+1,g.group||'',g.name||'',g.cash||0,g.transfer||0,g.attend?'ㅇ':'',g.ceremony||'',g.thanks||'',g.note||''];
       for(let i=0;i<9;i++){
         const c=ws.getCell(r,i+1);c.value=rv[i];c.border=BD;c.alignment=CEN;
         if(i===3||i===4){c.numFmt='#,##0';c.alignment={horizontal:'right',vertical:'middle'};}
@@ -1433,7 +1624,7 @@ async function doExport(){
   }
   sws.getRow(4).height=28;
   let gC=0,gT=0,gN=0;
-  TABS.forEach((k,idx)=>{
+  EXP_TABS.forEach((k,idx)=>{
     const l=data[k],c=l.reduce((s,g)=>(g.cash||0)+s,0),t=l.reduce((s,g)=>(g.transfer||0)+s,0);
     gC+=c;gT+=t;gN+=l.length;
     const r=5+idx,rv=[TNAME[k],c+t,c,t,l.length];
@@ -1444,33 +1635,35 @@ async function doExport(){
     }
     sws.getRow(r).height=24;
   });
+  const totRow=5+EXP_TABS.length;
   const tR=['합계',gC+gT,gC,gT,gN];
   for(let i=0;i<5;i++){
-    const c=sws.getCell(9,i+1);c.value=tR[i];c.border=BD;
+    const c=sws.getCell(totRow,i+1);c.value=tR[i];c.border=BD;
     c.font={bold:true,size:12};c.alignment=CEN;
     if(i>=1&&i<=3)c.numFmt='#,##0';
     c.fill={type:'pattern',pattern:'solid',fgColor:{argb:LC}};
   }
-  sws.getRow(9).height=28;
-  const all=[...data.groom,...data.bride,...data.groomParent,...data.brideParent];
+  sws.getRow(totRow).height=28;
+  const all=EXP_TABS.flatMap(k=>data[k]);
   const gm={};
   all.forEach(g=>{const gk=g.group||'미분류';if(!gm[gk])gm[gk]={n:0,c:0,t:0};gm[gk].n++;gm[gk].c+=(g.cash||0);gm[gk].t+=(g.transfer||0);});
   const grps=Object.entries(gm).sort((a,b)=>(b[1].c+b[1].t)-(a[1].c+a[1].t));
   if(grps.length){
-    sws.mergeCells('A11:E11');
-    sws.getCell('A11').value='구분별 현황';
-    sws.getCell('A11').font={bold:true,size:14,color:{argb:'2D2D3F'}};
-    sws.getRow(11).height=30;
+    const gsHdr=totRow+2, gsCol=totRow+3, gsData=totRow+4;
+    sws.mergeCells('A'+gsHdr+':E'+gsHdr);
+    sws.getCell('A'+gsHdr).value='구분별 현황';
+    sws.getCell('A'+gsHdr).font={bold:true,size:14,color:{argb:'2D2D3F'}};
+    sws.getRow(gsHdr).height=30;
     const gh=['구분','축의금 합계','현금','계좌이체','인원'];
     for(let i=0;i<5;i++){
-      const c=sws.getCell(12,i+1);c.value=gh[i];
+      const c=sws.getCell(gsCol,i+1);c.value=gh[i];
       c.font={bold:true,size:10,color:{argb:WH}};
       c.fill={type:'pattern',pattern:'solid',fgColor:{argb:HC}};
       c.alignment=CEN;c.border=BD;
     }
-    sws.getRow(12).height=26;
+    sws.getRow(gsCol).height=26;
     grps.forEach(([gk,v],idx)=>{
-      const r=13+idx,rv=[gk,v.c+v.t,v.c,v.t,v.n];
+      const r=gsData+idx,rv=[gk,v.c+v.t,v.c,v.t,v.n];
       for(let i=0;i<5;i++){
         const c=sws.getCell(r,i+1);c.value=rv[i];c.border=BD;c.alignment=CEN;
         if(i>=1&&i<=3)c.numFmt='#,##0';
@@ -1493,7 +1686,7 @@ async function doExport(){
 function doReset(){
   closeModal('menuModal');
   if(confirm('모든 데이터를 삭제하시겠습니까?')){
-    data={groom:[],bride:[],groomParent:[],brideParent:[]};
+    data=normalize({side});
     save();renderAll();toast('초기화 완료');
   }
 }
@@ -1522,7 +1715,7 @@ document.addEventListener('keydown', function(e) {
   if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){e.preventDefault();doExport();return;}
   if(inInput) return;
   if(e.key==='n'||e.key==='N'){if(!inputOpen)toggleSheet();else document.getElementById('qiName').focus();return;}
-  if(e.key>='1'&&e.key<='4'){switchTab(TABS[parseInt(e.key)-1]);return;}
+  if(e.key>='1'&&e.key<='3'){const t=tabsForSide()[parseInt(e.key)-1];if(t)switchTab(t);return;}
   if(e.key==='/'){e.preventDefault();document.getElementById('searchInput').focus();return;}
   if(e.key==='t'||e.key==='T'){if(inputOpen)setPayType(payType==='cash'?'transfer':'cash');return;}
   if(e.key==='s'||e.key==='S'){toggleStats();return;}

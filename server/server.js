@@ -21,8 +21,8 @@ app.use(express.static(path.join(__dirname, '..')));
 const DATA_DIR = path.join(__dirname, 'rooms');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
-const EMPTY_DATA = { groom: [], bride: [], groomParent: [], brideParent: [] };
-const TABS = ['groom', 'bride', 'groomParent', 'brideParent'];
+const EMPTY_DATA = { groom: [], bride: [], groomParent: [], brideParent: [], groomUnknown: [], brideUnknown: [] };
+const TABS = ['groom', 'bride', 'groomParent', 'brideParent', 'groomUnknown', 'brideUnknown'];
 const ADMIN_PASSWORD = 'aredsea';
 
 function countRecords(data) {
