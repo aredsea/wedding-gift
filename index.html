@@ -945,8 +945,11 @@ function connectToRoom(code) {
     socket.emit('join-room', code, (res) => {
       if (res.error) {
         updateConnBadge('offline', '방 없음');
-        toast('존재하지 않는 방 코드입니다');
+        toast('저장된 방을 찾을 수 없습니다');
         socket.disconnect(); socket = null;
+        roomCode = ''; isOnline = false;
+        localStorage.removeItem('roomCode');
+        document.getElementById('roomScreen').classList.remove('hidden');
         return;
       }
       roomCode = code;
@@ -997,6 +1000,13 @@ function connectToRoom(code) {
 
   socket.on('user-left', (count) => {
     updateConnBadge('', `· ${count}명`);
+  });
+
+  socket.on('connect_error', () => {
+    if (!isOnline) {
+      updateConnBadge('offline', '연결 실패');
+      document.getElementById('roomScreen').classList.remove('hidden');
+    }
   });
 
   socket.on('disconnect', () => {
