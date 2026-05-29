@@ -55,6 +55,17 @@ app.post('/api/room', (req, res) => {
   res.json({ code });
 });
 
+// REST: tunnel URL (for auto-discovery)
+app.get('/api/tunnel-url', (req, res) => {
+  const urlFile = path.join(__dirname, 'tunnel-url.txt');
+  try {
+    const url = fs.readFileSync(urlFile, 'utf8').trim();
+    res.json({ url });
+  } catch (e) {
+    res.json({ url: null });
+  }
+});
+
 // REST: check room exists
 app.get('/api/room/:code', (req, res) => {
   const code = req.params.code.replace(/[^0-9]/g, '');
