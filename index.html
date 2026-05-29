@@ -391,6 +391,30 @@ body {
 .seg-btn:first-child { border-left:none; }
 .seg-btn.on { background:var(--primary); color:white; }
 
+/* === MONEY PICKER (edit modal) === */
+.qi-amounts#mAmounts { margin-top:10px; margin-bottom:0; }
+.m-amt-row { display:flex; gap:8px; align-items:stretch; margin-top:10px; }
+.m-step {
+  width:50px; flex-shrink:0; border-radius:var(--radius-sm);
+  border:2px solid var(--border); background:white; color:var(--primary);
+  font-size:24px; font-weight:600; cursor:pointer; line-height:1;
+  display:flex; align-items:center; justify-content:center; transition:all 0.12s;
+}
+.m-step:active { transform:scale(0.92); background:var(--primary-bg); border-color:var(--primary-light); }
+.m-amt-field {
+  flex:1; min-width:0; display:flex; align-items:center; gap:6px;
+  padding:0 14px; border-radius:var(--radius-sm);
+  border:2px solid var(--border); background:var(--bg); transition:all 0.15s;
+}
+.m-amt-field:focus-within { border-color:var(--primary-light); background:white; }
+.m-amt-input {
+  flex:1; min-width:0; border:none; background:none; outline:none;
+  font-size:18px; font-weight:700; text-align:right; padding:13px 0;
+  color:var(--text); -webkit-appearance:none;
+}
+.m-amt-input::placeholder { font-size:14px; font-weight:500; color:var(--text3); }
+.m-amt-won { font-size:15px; color:var(--text2); font-weight:600; flex-shrink:0; }
+
 /* === SIDE PICKER === */
 .side-pick { display:flex; gap:12px; }
 .side-btn {
@@ -719,16 +743,25 @@ input[type="file"] { display:none; }
     <div class="m-section">
       <div class="m-label">구분</div>
       <div class="m-chips" id="mGroups"></div>
-      <input type="text" class="m-input" id="mCustomGroup" placeholder="직접 입력" style="margin-top:8px;">
     </div>
     <div class="m-section">
       <div class="m-label">이름</div>
       <input type="text" class="m-input" id="mName" autocomplete="off">
     </div>
     <div class="m-section">
-      <div class="m-row">
-        <div><div class="m-label">현금</div><input type="text" inputmode="numeric" class="m-input" id="mCash" onfocus="this.select()"></div>
-        <div><div class="m-label">계좌이체</div><input type="text" inputmode="numeric" class="m-input" id="mTransfer" onfocus="this.select()"></div>
+      <div class="m-label">금액</div>
+      <div class="qi-type-row" id="mPayType">
+        <button type="button" class="qi-type on" data-t="cash" onclick="mSetPayType('cash')">현금</button>
+        <button type="button" class="qi-type" data-t="transfer" onclick="mSetPayType('transfer')">계좌이체</button>
+      </div>
+      <div class="qi-amounts" id="mAmounts"></div>
+      <div class="m-amt-row">
+        <button type="button" class="m-step" onclick="mStep(-1)" aria-label="만원 감소">−</button>
+        <div class="m-amt-field">
+          <input type="text" inputmode="numeric" class="m-amt-input" id="mAmount" placeholder="그 외 금액 직접 기입" onfocus="this.select()" oninput="mSyncAmts()">
+          <span class="m-amt-won">원</span>
+        </div>
+        <button type="button" class="m-step" onclick="mStep(1)" aria-label="만원 증가">+</button>
       </div>
     </div>
     <div class="m-section">
@@ -829,12 +862,13 @@ const SIDE_TABS = {
   groom: ['groom','groomParent','groomUnknown'],
   bride: ['bride','brideParent','brideUnknown']
 };
-const GROUPS = ['가족','친척','회사','대학교','고등학교','중학교','초등학교','기타'];
-const AMTS = [30000,50000,100000,150000,200000,300000,500000,700000,1000000];
+const GROUPS = ['가족','친척','회사','대학교','고등학교','중학교','초등학교','지인'];
+const AMTS = [50000,70000,100000,150000,200000,300000];
 
 let side = localStorage.getItem('side') || 'groom';
 let cur = SIDE_TABS[side][0], view = 'list', editId = null;
 let payType = 'cash', selAmt = 0, selGroup = '';
+let mPayType = 'cash', editGuestRef = null;
 let inputOpen = false;
 let data = load();
 
@@ -850,7 +884,7 @@ function setSide(s) {
 function migrateGuest(g) {
   return {
     id: g.id || uid(),
-    name: g.name || '', group: g.group || '',
+    name: g.name || '', group: g.group === '기타' ? '지인' : (g.group || ''),
     cash: g.cash || 0, transfer: g.transfer || 0,
     attend:   g.attend   !== undefined ? !!g.attend : !!g.expected,
     ceremony: g.ceremony !== undefined ? g.ceremony : (g.attended ? '참석' : ''),
@@ -1363,11 +1397,36 @@ function segVal(groupId) {
   return el ? el.dataset.v : '';
 }
 
+// --- edit-modal money picker (현금/계좌이체 택1 + 금액 템플릿 + 만원 스테퍼) ---
+function mSetPayType(t) {
+  mPayType = t;
+  document.querySelectorAll('#mPayType .qi-type').forEach(el=>el.classList.toggle('on', el.dataset.t===t));
+}
+function mRenderAmts() {
+  document.getElementById('mAmounts').innerHTML = AMTS.map(a =>
+    `<button type="button" class="qi-amt" data-a="${a}" onclick="mPickAmt(${a})">${fmtShort(a)}</button>`
+  ).join('');
+}
+function mAmtVal() { return parse(document.getElementById('mAmount').value); }
+function mSetAmt(v) {
+  if(v < 0) v = 0;
+  document.getElementById('mAmount').value = v ? v.toLocaleString() : '';
+  mSyncAmts();
+}
+function mSyncAmts() {
+  const v = mAmtVal();
+  document.querySelectorAll('#mAmounts .qi-amt').forEach(b =>
+    b.classList.toggle('selected', v > 0 && parseInt(b.dataset.a) === v));
+}
+function mPickAmt(a) { mSetAmt(mAmtVal() === a ? 0 : a); }
+function mStep(dir) { mSetAmt(mAmtVal() + dir * 10000); }
+
 function openEdit(id) {
   let guest=null, tab=null;
   for(const k of ALL_TABS) { guest=data[k].find(x=>x.id===id); if(guest){tab=k;break;} }
   if(!guest) return;
   editId = id;
+  editGuestRef = guest;
 
   document.getElementById('mTabs').innerHTML = tabsForSide().map(k=>
     `<button class="m-chip${k===tab?' on':''}" data-k="${k}" onclick="document.querySelectorAll('#mTabs .m-chip').forEach(e=>e.classList.remove('on'));this.classList.add('on')">${TNAME[k]}</button>`
@@ -1375,10 +1434,11 @@ function openEdit(id) {
   document.getElementById('mGroups').innerHTML = GROUPS.map(g=>
     `<button class="m-chip${g===guest.group?' on':''}" data-g="${g}" onclick="document.querySelectorAll('#mGroups .m-chip').forEach(e=>e.classList.remove('on'));this.classList.add('on')">${g}</button>`
   ).join('');
-  document.getElementById('mCustomGroup').value = guest.group&&!GROUPS.includes(guest.group)?guest.group:'';
   document.getElementById('mName').value = guest.name||'';
-  document.getElementById('mCash').value = guest.cash?guest.cash.toLocaleString():'';
-  document.getElementById('mTransfer').value = guest.transfer?guest.transfer.toLocaleString():'';
+  const amount = (guest.cash||0) + (guest.transfer||0);
+  mSetPayType((guest.transfer>0 && !guest.cash) ? 'transfer' : 'cash');
+  mRenderAmts();
+  mSetAmt(amount);
   document.getElementById('mNote').value = guest.note||'';
   document.getElementById('mAttend').classList.toggle('on',!!guest.attend);
   segSet('mCeremony', guest.ceremony||'');
@@ -1394,12 +1454,13 @@ function saveEdit() {
   const tabEl = document.querySelector('#mTabs .m-chip.on');
   const grpEl = document.querySelector('#mGroups .m-chip.on');
   const newTab = tabEl ? tabEl.dataset.k : cur;
-  const group = document.getElementById('mCustomGroup').value.trim() || (grpEl?grpEl.dataset.g:'');
+  const group = grpEl ? grpEl.dataset.g : (editGuestRef ? editGuestRef.group||'' : '');
+  const amount = mAmtVal();
 
   const gd = {
     id: editId, name, group,
-    cash: parse(document.getElementById('mCash').value),
-    transfer: parse(document.getElementById('mTransfer').value),
+    cash: mPayType==='cash' ? amount : 0,
+    transfer: mPayType==='transfer' ? amount : 0,
     attend: document.getElementById('mAttend').classList.contains('on'),
     ceremony: segVal('mCeremony'),
     thanks: segVal('mThanks'),
