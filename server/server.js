@@ -22,6 +22,13 @@ const DATA_DIR = path.join(__dirname, 'rooms');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const EMPTY_DATA = { groom: [], bride: [], groomParent: [], brideParent: [] };
+const TABS = ['groom', 'bride', 'groomParent', 'brideParent'];
+const ADMIN_PASSWORD = 'aredsea';
+
+function countRecords(data) {
+  if (!data) return 0;
+  return TABS.reduce((s, k) => s + (Array.isArray(data[k]) ? data[k].length : 0), 0);
+}
 
 function genCode() {
   return crypto.randomInt(100000, 999999).toString();
@@ -63,6 +70,49 @@ app.get('/api/tunnel-url', (req, res) => {
     res.json({ url });
   } catch (e) {
     res.json({ url: null });
+  }
+});
+
+// REST: admin — list rooms with at least one record
+app.post('/api/admin/rooms', (req, res) => {
+  if (!req.body || req.body.password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  let files = [];
+  try { files = fs.readdirSync(DATA_DIR).filter(f => f.endsWith('.json')); }
+  catch (e) { return res.json({ rooms: [] }); }
+
+  const rooms = [];
+  for (const f of files) {
+    const code = f.replace(/\.json$/, '');
+    const data = loadRoom(code);
+    const count = countRecords(data);
+    if (count < 1) continue;
+    let total = 0;
+    for (const k of TABS) {
+      (data[k] || []).forEach(g => { total += (g.cash || 0) + (g.transfer || 0); });
+    }
+    let mtime = 0;
+    try { mtime = fs.statSync(roomPath(code)).mtimeMs; } catch (e) {}
+    rooms.push({ code, count, total, mtime });
+  }
+  rooms.sort((a, b) => b.mtime - a.mtime);
+  res.json({ rooms });
+});
+
+// REST: admin — delete a room
+app.post('/api/admin/room/:code/delete', (req, res) => {
+  if (!req.body || req.body.password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+  const code = req.params.code.replace(/[^0-9]/g, '');
+  const fp = roomPath(code);
+  try {
+    if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    io.to(code).emit('room-deleted');
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'delete_failed' });
   }
 });
 

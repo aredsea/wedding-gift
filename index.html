@@ -11,24 +11,26 @@
 <title>축의금 정리</title>
 <style>
 :root {
-  --primary: #6C5CE7;
-  --primary-light: #A29BFE;
-  --primary-bg: #F0EDFF;
-  --accent: #FF6B6B;
-  --bg: #F7F6F3;
-  --card: #FFFFFF;
-  --text: #1A1A2E;
-  --text2: #8E8EA0;
-  --text3: #C0C0CC;
-  --border: #EAEAEF;
-  --ok: #00C48C;
-  --ok-light: #E6FAF3;
-  --groom: #5B8DEF;
-  --bride: #FF6B6B;
-  --shadow: 0 2px 12px rgba(108,92,231,0.07);
-  --shadow-lg: 0 8px 32px rgba(108,92,231,0.12);
-  --radius: 16px;
-  --radius-sm: 12px;
+  /* Apple Action Blue — single accent */
+  --primary: #0066cc;
+  --primary-light: #4a9eea;
+  --primary-bg: #eaf3fc;
+  --accent: #ff3b30;
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --text: #1d1d1f;
+  --text2: #7a7a7a;
+  --text3: #aeaeb2;
+  --border: #e0e0e0;
+  --ok: #34c759;
+  --ok-light: #e8f8ec;
+  --groom: #0066cc;
+  --bride: #5856d6;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-lg: 0 6px 24px rgba(0,0,0,0.10);
+  --radius: 18px;
+  --radius-sm: 11px;
+  --radius-pill: 9999px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -43,45 +45,47 @@ body {
 /* === HEADER === */
 .hdr {
   position:sticky; top:0; z-index:100;
-  background:rgba(247,246,243,0.85);
+  background:rgba(245,245,247,0.8);
   backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
   border-bottom:1px solid rgba(0,0,0,0.06);
   padding:14px 20px 10px;
 }
-.hdr-row { display:flex; justify-content:space-between; align-items:center; }
-.hdr h1 { font-size:22px; font-weight:800; letter-spacing:-0.3px; }
-.hdr-right { display:flex; gap:4px; }
+.hdr-row { display:flex; justify-content:space-between; align-items:center; gap:8px; min-width:0; }
+.hdr h1 { font-size:19px; font-weight:700; letter-spacing:-0.4px; white-space:nowrap; flex-shrink:0; }
+.hdr-right { display:flex; gap:2px; align-items:center; flex-shrink:0; }
 .hdr-btn {
   background:none; border:none; font-size:14px; color:var(--primary);
-  padding:8px 12px; cursor:pointer; font-weight:700; border-radius:10px;
-  transition:background 0.15s;
+  padding:8px 10px; min-height:40px; cursor:pointer; font-weight:600; border-radius:var(--radius-sm);
+  transition:background 0.15s; white-space:nowrap;
 }
 .hdr-btn:hover { background:var(--primary-bg); }
-.hdr-btn:active { background:rgba(108,92,231,0.15); }
+.hdr-btn:active { background:rgba(0,102,204,0.12); }
+.hdr-kbd { display:none; }
+@media(min-width:768px){ .hdr-kbd{ display:inline-flex; } }
 
 .mini-sum {
   display:flex; gap:8px; padding:8px 0 2px; font-size:13px; color:var(--text2);
   align-items:baseline; flex-wrap:wrap;
 }
-.mini-sum b { color:var(--text); font-weight:800; font-size:17px; }
+.mini-sum b { color:var(--text); font-weight:700; font-size:17px; }
 
 /* === TABS === */
 .tabs {
   display:flex; gap:6px; padding:8px 20px 10px;
-  background:rgba(247,246,243,0.85);
+  background:rgba(245,245,247,0.8);
   position:sticky; top:78px; z-index:99;
   backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
 }
 .tab {
-  flex:1; padding:10px 4px; text-align:center;
+  flex:1; padding:9px 4px; text-align:center;
   font-size:13px; font-weight:600; cursor:pointer;
-  border:none; background:var(--card); color:var(--text2);
-  border-radius:var(--radius-sm);
-  transition:all 0.15s; box-shadow:0 1px 3px rgba(0,0,0,0.04);
+  border:1px solid var(--border); background:var(--card); color:var(--text2);
+  border-radius:var(--radius-pill);
+  transition:all 0.15s;
 }
+.tab:active { transform:scale(0.96); }
 .tab.active {
-  color:white; background:var(--primary);
-  box-shadow:0 4px 12px rgba(108,92,231,0.3);
+  color:white; background:var(--primary); border-color:var(--primary);
   font-weight:700;
 }
 .tab .cnt { font-size:11px; font-weight:400; opacity:0.8; }
@@ -110,7 +114,7 @@ body {
 .search-input {
   width:100%; padding:14px 16px 14px 44px; border-radius:var(--radius);
   border:2px solid transparent; background:var(--card);
-  font-size:16px; font-weight:500; outline:none;
+  font-size:16px; font-weight:400; outline:none;
   box-shadow:var(--shadow); transition:all 0.2s;
   -webkit-appearance:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='%238E8EA0' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E");
@@ -141,7 +145,7 @@ body {
   background:var(--primary-bg); color:var(--primary); font-weight:600;
 }
 .gi-money { font-size:15px; font-weight:700; color:var(--primary); margin-top:4px; }
-.gi-money .type { font-weight:500; color:var(--text2); font-size:12px; margin-left:4px; }
+.gi-money .type { font-weight:400; color:var(--text2); font-size:12px; margin-left:4px; }
 .gi-note {
   font-size:12px; color:var(--text2); margin-top:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -156,13 +160,13 @@ body {
   transition:all 0.15s; line-height:1.1; font-weight:600;
 }
 .gi-ck b { font-size:16px; display:none; }
-.gi-ck.on { background:var(--ok); border-color:var(--ok); color:white; box-shadow:0 2px 8px rgba(0,196,140,0.3); }
+.gi-ck.on { background:var(--ok); border-color:var(--ok); color:white; box-shadow:0 2px 8px rgba(52,199,89,0.28); }
 .gi-ck.on b { display:block; }
 .gi-ck.on span { display:none; }
 
 .empty {
   text-align:center; padding:60px 20px; color:var(--text3);
-  font-size:16px; font-weight:500;
+  font-size:16px; font-weight:400;
 }
 
 /* === FAB (Mobile) === */
@@ -171,11 +175,11 @@ body {
   width:60px; height:60px; border-radius:50%;
   background:var(--primary); color:white; border:none;
   font-size:28px; font-weight:300; cursor:pointer;
-  box-shadow:0 6px 20px rgba(108,92,231,0.4);
+  box-shadow:0 6px 20px rgba(0,102,204,0.26);
   z-index:110; transition:all 0.25s ease;
   display:flex; align-items:center; justify-content:center;
 }
-.fab:active { transform:scale(0.92); }
+.fab:active { transform:scale(0.95); }
 .fab.open { transform:rotate(45deg); background:var(--text2); box-shadow:0 4px 12px rgba(0,0,0,0.2); }
 
 /* === SHEET BACKDROP === */
@@ -204,7 +208,7 @@ body {
   display:flex; justify-content:space-between; align-items:center;
   margin-bottom:16px;
 }
-.qi-head h2 { font-size:20px; font-weight:800; letter-spacing:-0.3px; }
+.qi-head h2 { font-size:20px; font-weight:700; letter-spacing:-0.3px; }
 .qi-close {
   width:36px; height:36px; border-radius:50%;
   background:var(--bg); border:none; font-size:18px;
@@ -223,12 +227,12 @@ body {
   background:var(--bg); color:var(--text2);
   border-radius:10px; transition:all 0.15s;
 }
-.qi-tab.on { background:var(--primary); color:white; box-shadow:0 2px 8px rgba(108,92,231,0.3); }
+.qi-tab.on { background:var(--primary); color:white; box-shadow:0 2px 8px rgba(0,102,204,0.2); }
 
 .qi-name-row { margin-bottom:12px; }
 .qi-name {
   width:100%; padding:14px 16px; border-radius:var(--radius-sm);
-  border:2px solid var(--border); font-size:17px; font-weight:500;
+  border:2px solid var(--border); font-size:17px; font-weight:400;
   background:var(--bg); outline:none; -webkit-appearance:none;
   transition:all 0.15s;
 }
@@ -266,12 +270,12 @@ body {
 }
 .qi-amt {
   padding:16px 4px; border-radius:var(--radius-sm); text-align:center;
-  font-size:17px; font-weight:800; cursor:pointer;
+  font-size:17px; font-weight:700; cursor:pointer;
   border:2px solid var(--border); background:white;
   transition:all 0.12s; color:var(--text);
 }
 .qi-amt:active { transform:scale(0.95); }
-.qi-amt.selected { background:var(--primary); color:white; border-color:var(--primary); box-shadow:0 4px 12px rgba(108,92,231,0.3); }
+.qi-amt.selected { background:var(--primary); color:white; border-color:var(--primary); box-shadow:0 4px 12px rgba(0,102,204,0.2); }
 
 .qi-custom-row { display:flex; gap:8px; margin-bottom:14px; }
 .qi-custom {
@@ -293,11 +297,11 @@ body {
 .qi-save {
   width:100%; padding:16px; border-radius:var(--radius);
   border:none; background:var(--primary); color:white;
-  font-size:17px; font-weight:800; cursor:pointer;
+  font-size:17px; font-weight:700; cursor:pointer;
   transition:all 0.15s; letter-spacing:-0.2px;
-  box-shadow:0 4px 12px rgba(108,92,231,0.3);
+  box-shadow:0 4px 12px rgba(0,102,204,0.2);
 }
-.qi-save:active { transform:scale(0.98); opacity:0.9; }
+.qi-save:active { transform:scale(0.95); opacity:0.9; }
 
 /* === EDIT MODAL === */
 .modal-bg {
@@ -315,7 +319,7 @@ body {
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
 
 .m-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; }
-.m-head h2 { font-size:20px; font-weight:800; }
+.m-head h2 { font-size:20px; font-weight:700; }
 .m-btn {
   background:none; border:none; font-size:16px; padding:8px 12px;
   cursor:pointer; font-weight:700; border-radius:10px;
@@ -327,7 +331,7 @@ body {
 .m-label { font-size:13px; font-weight:700; color:var(--text2); margin-bottom:6px; }
 .m-input {
   width:100%; padding:14px; border-radius:var(--radius-sm);
-  border:2px solid var(--border); font-size:16px; font-weight:500;
+  border:2px solid var(--border); font-size:16px; font-weight:400;
   background:var(--bg); outline:none; -webkit-appearance:none;
   transition:border-color 0.15s;
 }
@@ -374,9 +378,9 @@ body {
   background:var(--card); border-radius:var(--radius); padding:18px;
   margin-bottom:10px; box-shadow:var(--shadow);
 }
-.s-card h3 { font-size:16px; font-weight:800; margin-bottom:10px; }
-.s-big { font-size:28px; font-weight:800; letter-spacing:-0.5px; }
-.s-sub { font-size:13px; color:var(--text2); margin-top:4px; font-weight:500; }
+.s-card h3 { font-size:16px; font-weight:700; margin-bottom:10px; }
+.s-big { font-size:28px; font-weight:700; letter-spacing:-0.5px; }
+.s-sub { font-size:13px; color:var(--text2); margin-top:4px; font-weight:400; }
 .s-row { display:flex; gap:10px; }
 .s-row > .s-card { flex:1; }
 .s-bar { margin-bottom:10px; }
@@ -461,7 +465,7 @@ input[type="file"] { display:none; }
   width:min(380px, calc(100vw - 40px));
   text-align:center;
 }
-.room-box h1 { font-size:28px; font-weight:800; margin-bottom:6px; letter-spacing:-0.5px; }
+.room-box h1 { font-size:28px; font-weight:700; margin-bottom:6px; letter-spacing:-0.5px; }
 .room-box .sub { font-size:15px; color:var(--text2); margin-bottom:36px; }
 .room-actions { display:flex; flex-direction:column; gap:12px; }
 .room-btn {
@@ -469,8 +473,8 @@ input[type="file"] { display:none; }
   font-size:17px; font-weight:700; cursor:pointer;
   transition:all 0.15s; letter-spacing:-0.2px;
 }
-.room-btn:active { transform:scale(0.97); }
-.room-btn.primary { background:var(--primary); color:white; box-shadow:0 4px 12px rgba(108,92,231,0.3); }
+.room-btn:active { transform:scale(0.95); }
+.room-btn.primary { background:var(--primary); color:white; box-shadow:0 4px 12px rgba(0,102,204,0.2); }
 .room-btn.secondary { background:var(--card); color:var(--text); box-shadow:var(--shadow); }
 .room-divider {
   display:flex; align-items:center; gap:12px;
@@ -482,12 +486,12 @@ input[type="file"] { display:none; }
 }
 .room-code-input {
   flex:1; padding:16px; border-radius:var(--radius-sm);
-  border:2px solid var(--border); font-size:22px; font-weight:800;
+  border:2px solid var(--border); font-size:22px; font-weight:700;
   text-align:center; letter-spacing:8px; background:var(--card);
   outline:none; -webkit-appearance:none; transition:border-color 0.15s;
 }
 .room-code-input:focus { border-color:var(--primary-light); }
-.room-code-input::placeholder { letter-spacing:2px; font-size:15px; font-weight:500; color:var(--text3); }
+.room-code-input::placeholder { letter-spacing:2px; font-size:15px; font-weight:400; color:var(--text3); }
 .room-join-btn {
   padding:16px 20px; border-radius:var(--radius-sm);
   border:none; background:var(--primary); color:white;
@@ -498,17 +502,60 @@ input[type="file"] { display:none; }
 .room-offline {
   margin-top:24px; background:none; border:none;
   font-size:14px; color:var(--text2); cursor:pointer;
-  text-decoration:underline; font-weight:500;
+  text-decoration:underline; font-weight:400;
 }
+.room-admin {
+  margin-top:4px; background:none; border:none;
+  font-size:13px; color:var(--text3); cursor:pointer;
+  font-weight:400;
+}
+.room-admin:active { color:var(--text2); }
+
+/* === ADMIN PANEL === */
+.admin-pw-row { display:flex; gap:8px; margin-bottom:6px; }
+.admin-pw {
+  flex:1; padding:14px 16px; border-radius:var(--radius-sm);
+  border:2px solid var(--border); font-size:16px; font-weight:400;
+  background:var(--bg); outline:none; -webkit-appearance:none; transition:border-color 0.15s;
+}
+.admin-pw:focus { border-color:var(--primary-light); background:white; }
+.admin-pw-btn {
+  padding:0 20px; border-radius:var(--radius-sm); border:none;
+  background:var(--primary); color:white; font-size:16px; font-weight:600;
+  cursor:pointer; white-space:nowrap; transition:transform 0.12s;
+}
+.admin-pw-btn:active { transform:scale(0.95); }
+.admin-hint { font-size:13px; color:var(--text2); margin-bottom:14px; }
+.admin-rooms { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+.admin-room {
+  display:flex; align-items:center; gap:12px;
+  background:var(--bg); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:14px 16px;
+}
+.admin-room-info { flex:1; min-width:0; }
+.admin-room-code { font-size:17px; font-weight:700; letter-spacing:1px; }
+.admin-room-meta { font-size:12px; color:var(--text2); margin-top:3px; }
+.admin-room-acts { display:flex; gap:6px; flex-shrink:0; }
+.admin-act {
+  border:none; border-radius:var(--radius-pill); padding:8px 14px;
+  font-size:13px; font-weight:600; cursor:pointer; min-height:36px; white-space:nowrap;
+  transition:transform 0.12s;
+}
+.admin-act:active { transform:scale(0.95); }
+.admin-open { background:var(--primary-bg); color:var(--primary); }
+.admin-del { background:var(--danger-bg, #ffeceb); color:var(--accent); }
+.admin-empty { text-align:center; padding:32px 12px; color:var(--text3); font-size:15px; }
 
 /* === CONNECTION STATUS === */
 .conn-badge {
   display:inline-flex; align-items:center; gap:5px;
-  padding:4px 10px; border-radius:20px;
-  font-size:12px; font-weight:600;
+  padding:5px 10px; border-radius:var(--radius-pill);
+  font-size:12px; font-weight:600; line-height:1;
   background:var(--ok-light); color:var(--ok);
   cursor:pointer; border:none; transition:all 0.15s;
+  max-width:96px; overflow:hidden; white-space:nowrap; flex-shrink:1;
 }
+.conn-badge #connText { overflow:hidden; text-overflow:ellipsis; }
 .conn-badge.offline { background:#FFF0F0; color:var(--accent); }
 .conn-badge .dot {
   width:7px; height:7px; border-radius:50%;
@@ -549,6 +596,7 @@ input[type="file"] { display:none; }
         <button class="room-join-btn" onclick="joinRoom()">참여</button>
       </div>
       <button class="room-offline" onclick="goOffline()">오프라인으로 사용</button>
+      <button class="room-admin" onclick="openAdmin()">관리자 모드</button>
     </div>
   </div>
 </div>
@@ -559,7 +607,7 @@ input[type="file"] { display:none; }
     <h1>💒 축의금 정리</h1>
     <div class="hdr-right">
       <button class="conn-badge local" id="connBadge" onclick="showRoomInfo()"><span class="dot"></span><span id="connText">오프라인</span></button>
-      <button class="hdr-btn" onclick="toggleShortcuts()" title="단축키 (?)">⌨️</button>
+      <button class="hdr-btn hdr-kbd" onclick="toggleShortcuts()" title="단축키 (?)">⌨️</button>
       <button class="hdr-btn" onclick="toggleStats()" id="statsBtn">통계</button>
       <button class="hdr-btn" onclick="openMenu()">메뉴</button>
     </div>
@@ -679,6 +727,27 @@ input[type="file"] { display:none; }
   </div>
 </div>
 
+<!-- ADMIN MODAL -->
+<div class="modal-bg" id="adminModal">
+  <div class="modal">
+    <div class="m-head">
+      <button class="m-btn m-close" onclick="closeAdmin()">닫기</button>
+      <h2>관리자 모드</h2><span></span>
+    </div>
+    <div id="adminLogin">
+      <div class="admin-hint">관리자 비밀번호를 입력하세요.</div>
+      <div class="admin-pw-row">
+        <input type="password" class="admin-pw" id="adminPw" placeholder="비밀번호" autocomplete="off" onkeydown="if(event.key==='Enter')submitAdminPassword()">
+        <button class="admin-pw-btn" onclick="submitAdminPassword()">확인</button>
+      </div>
+    </div>
+    <div id="adminPanel" style="display:none">
+      <div class="admin-hint">기록이 있는 방 코드 <b id="adminCount">0</b>개</div>
+      <div class="admin-rooms" id="adminRooms"></div>
+    </div>
+  </div>
+</div>
+
 <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleImport(event)">
 <div class="toast" id="toast"></div>
 
@@ -751,7 +820,7 @@ function connectToRoom(code) {
       data = res.data;
       localStorage.setItem('weddingGifts', JSON.stringify(data));
       renderAll();
-      updateConnBadge('', `${code} · ${res.online}명`);
+      updateConnBadge('', `· ${res.online}명`);
       document.getElementById('roomCodeDisplay').style.display = 'block';
       document.getElementById('roomCodeText').textContent = code;
       document.getElementById('menuLeave').style.display = '';
@@ -766,12 +835,23 @@ function connectToRoom(code) {
     renderAll();
   });
 
+  socket.on('room-deleted', () => {
+    toast('이 방이 관리자에 의해 삭제되었습니다');
+    if (socket) { socket.disconnect(); socket = null; }
+    roomCode = ''; isOnline = false;
+    localStorage.removeItem('roomCode');
+    document.getElementById('roomCodeDisplay').style.display = 'none';
+    document.getElementById('menuLeave').style.display = 'none';
+    updateConnBadge('local', '오프라인');
+    document.getElementById('roomScreen').classList.remove('hidden');
+  });
+
   socket.on('user-joined', (count) => {
-    updateConnBadge('', `${roomCode} · ${count}명`);
+    updateConnBadge('', `· ${count}명`);
   });
 
   socket.on('user-left', (count) => {
-    updateConnBadge('', `${roomCode} · ${count}명`);
+    updateConnBadge('', `· ${count}명`);
   });
 
   socket.on('disconnect', () => {
@@ -784,7 +864,7 @@ function connectToRoom(code) {
         data = res.data;
         localStorage.setItem('weddingGifts', JSON.stringify(data));
         renderAll();
-        updateConnBadge('', `${roomCode} · ${res.online}명`);
+        updateConnBadge('', `· ${res.online}명`);
       }
     });
   });
@@ -844,6 +924,101 @@ function showRoomInfo() {
 function copyRoomCode() {
   if (!roomCode) return;
   navigator.clipboard.writeText(roomCode).then(() => toast(`방 코드 ${roomCode} 복사됨`)).catch(() => toast(`방 코드: ${roomCode}`));
+}
+
+// === ADMIN MODE ===
+let adminPw = '';
+function openAdmin() {
+  serverUrl = detectServerUrl();
+  adminPw = '';
+  document.getElementById('adminLogin').style.display = '';
+  document.getElementById('adminPanel').style.display = 'none';
+  document.getElementById('adminPw').value = '';
+  showModal('adminModal');
+  setTimeout(() => document.getElementById('adminPw').focus(), 250);
+}
+function closeAdmin() { closeModal('adminModal'); }
+
+async function submitAdminPassword() {
+  const pw = document.getElementById('adminPw').value;
+  if (!pw) { toast('비밀번호를 입력하세요'); return; }
+  try {
+    const res = await fetch(serverUrl + '/api/admin/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    if (res.status === 401) { toast('비밀번호가 올바르지 않습니다'); return; }
+    if (!res.ok) { toast('서버 오류'); return; }
+    const json = await res.json();
+    adminPw = pw;
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('adminPanel').style.display = '';
+    renderAdminRooms(json.rooms || []);
+  } catch (e) {
+    toast('서버 연결 실패');
+    console.error(e);
+  }
+}
+
+async function refreshAdminRooms() {
+  try {
+    const res = await fetch(serverUrl + '/api/admin/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: adminPw })
+    });
+    if (!res.ok) return;
+    const json = await res.json();
+    renderAdminRooms(json.rooms || []);
+  } catch (e) { console.error(e); }
+}
+
+function renderAdminRooms(rooms) {
+  document.getElementById('adminCount').textContent = rooms.length;
+  const el = document.getElementById('adminRooms');
+  if (!rooms.length) {
+    el.innerHTML = '<div class="admin-empty">기록이 있는 방이 없습니다</div>';
+    return;
+  }
+  el.innerHTML = rooms.map(r => {
+    const d = r.mtime ? new Date(r.mtime) : null;
+    const ds = d ? `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}` : '';
+    return `<div class="admin-room">
+      <div class="admin-room-info">
+        <div class="admin-room-code">${esc(r.code)}</div>
+        <div class="admin-room-meta">${r.count}명 · ${fmt(r.total||0)}${ds?` · ${ds}`:''}</div>
+      </div>
+      <div class="admin-room-acts">
+        <button class="admin-act admin-open" onclick="adminOpenRoom('${esc(r.code)}')">열기</button>
+        <button class="admin-act admin-del" onclick="adminDeleteRoom('${esc(r.code)}')">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function adminOpenRoom(code) {
+  closeAdmin();
+  serverUrl = detectServerUrl();
+  connectToRoom(code);
+}
+
+async function adminDeleteRoom(code) {
+  if (!confirm(`방 ${code}를 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  try {
+    const res = await fetch(serverUrl + `/api/admin/room/${code}/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: adminPw })
+    });
+    if (res.status === 401) { toast('인증 만료, 다시 로그인하세요'); return; }
+    if (!res.ok) { toast('삭제 실패'); return; }
+    toast(`방 ${code} 삭제됨`);
+    refreshAdminRooms();
+  } catch (e) {
+    toast('서버 연결 실패');
+    console.error(e);
+  }
 }
 
 // Auto-reconnect on load
@@ -1118,16 +1293,16 @@ function renderStats() {
   document.getElementById('statsView').innerHTML=`
     <div class="s-card"><div class="s-big">${fmt(total)}</div><div class="s-sub">전체 합계 &middot; 현금 ${fmt(cash)} / 이체 ${fmt(transfer)} &middot; ${all.length}명</div></div>
     <div class="s-row">
-      <div class="s-card"><div style="font-size:20px;font-weight:800;color:var(--groom)">${fmt(gtot)}</div><div class="s-sub">신랑측 ${gt.length}명</div></div>
-      <div class="s-card"><div style="font-size:20px;font-weight:800;color:var(--bride)">${fmt(btot)}</div><div class="s-sub">신부측 ${bt.length}명</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700;color:var(--groom)">${fmt(gtot)}</div><div class="s-sub">신랑측 ${gt.length}명</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700;color:var(--bride)">${fmt(btot)}</div><div class="s-sub">신부측 ${bt.length}명</div></div>
     </div>
     <div class="s-row">
-      <div class="s-card"><div style="font-size:20px;font-weight:800">${all.length?Math.round(att/all.length*100):0}%</div><div class="s-sub">참석률 ${att}/${all.length}</div></div>
-      <div class="s-card"><div style="font-size:20px;font-weight:800">${all.length?Math.round(thk/all.length*100):0}%</div><div class="s-sub">감사인사 ${thk}/${all.length}</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700">${all.length?Math.round(att/all.length*100):0}%</div><div class="s-sub">참석률 ${att}/${all.length}</div></div>
+      <div class="s-card"><div style="font-size:20px;font-weight:700">${all.length?Math.round(thk/all.length*100):0}%</div><div class="s-sub">감사인사 ${thk}/${all.length}</div></div>
     </div>
     <div class="s-card"><h3>구분별</h3>${grps.map(([k,v])=>`
       <div class="s-bar"><div class="s-bar-top"><span>${esc(k)} (${v.n}명)</span><b>${fmt(v.t)}</b></div>
-      <div class="s-bar-bg"><div class="s-bar-fill" style="width:${v.t/mx*100}%;background:linear-gradient(90deg,var(--primary),var(--primary-light))"></div></div></div>`).join('')}
+      <div class="s-bar-bg"><div class="s-bar-fill" style="width:${v.t/mx*100}%;background:var(--primary)"></div></div></div>`).join('')}
     </div>`;
 }
 
@@ -1177,7 +1352,7 @@ async function doExport(){
   closeModal('menuModal');
   try{
   const wb=new ExcelJS.Workbook();
-  const HC='5B5EA6',LC='EEEEF5',BC='D1D1D6',WH='FFFFFF';
+  const HC='0066CC',LC='EAF3FC',BC='D1D1D6',WH='FFFFFF';
   const BD={top:{style:'thin',color:{argb:BC}},left:{style:'thin',color:{argb:BC}},bottom:{style:'thin',color:{argb:BC}},right:{style:'thin',color:{argb:BC}}};
   const BD2={top:{style:'thin',color:{argb:'AAAAAA'}},left:{style:'thin',color:{argb:'AAAAAA'}},bottom:{style:'thin',color:{argb:'AAAAAA'}},right:{style:'thin',color:{argb:'AAAAAA'}}};
   const CEN={horizontal:'center',vertical:'middle'};
@@ -1333,6 +1508,7 @@ document.addEventListener('keydown', function(e) {
   const tag = e.target.tagName;
   const inInput = tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
   if(e.key==='Escape') {
+    if(document.getElementById('adminModal').classList.contains('show')){closeModal('adminModal');return;}
     if(document.getElementById('editModal').classList.contains('show')){closeModal('editModal');return;}
     if(document.getElementById('menuModal').classList.contains('show')){closeModal('menuModal');return;}
     if(inputOpen){closeSheet();return;}
