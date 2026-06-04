@@ -71,24 +71,28 @@ body {
 
 /* === TABS === */
 .tabs {
-  display:flex; gap:6px; padding:8px 20px 10px;
+  display:flex; flex-direction:column; gap:6px; padding:8px 20px 10px;
   background:rgba(245,245,247,0.8);
   position:sticky; top:78px; z-index:99;
   backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
 }
+.tab-row { display:flex; gap:6px; }
 .tab {
-  flex:1; padding:9px 4px; text-align:center;
+  padding:9px 4px; text-align:center;
   font-size:13px; font-weight:600; cursor:pointer;
   border:1px solid var(--border); background:var(--card); color:var(--text2);
   border-radius:var(--radius-pill);
   transition:all 0.15s;
 }
+.tab-row .tab { flex:1; min-width:0; }
+.tab-all { width:100%; padding:11px 4px; font-size:14px; }
 .tab:active { transform:scale(0.96); }
 .tab.active {
   color:white; background:var(--primary); border-color:var(--primary);
   font-weight:700;
 }
 .tab .cnt { font-size:11px; font-weight:400; opacity:0.8; }
+.gi-tab-tag { background:var(--primary); color:#fff; }
 
 /* === SHORTCUT GUIDE === */
 .shortcut-bar {
@@ -678,7 +682,7 @@ input[type="file"] { display:none; }
 <!-- SHORTCUT GUIDE -->
 <div class="shortcut-bar" id="shortcutBar">
   <span class="sk"><kbd>N</kbd> 추가</span>
-  <span class="sk"><kbd>1</kbd>~<kbd>3</kbd> 탭</span>
+  <span class="sk"><kbd>1</kbd>~<kbd>4</kbd> 탭</span>
   <span class="sk"><kbd>T</kbd> 현금/이체</span>
   <span class="sk"><kbd>Enter</kbd> 저장</span>
   <span class="sk"><kbd>/</kbd> 검색</span>
@@ -797,6 +801,7 @@ input[type="file"] { display:none; }
       <h2>메뉴</h2><span></span>
     </div>
     <ul class="menu-list">
+      <li onclick="copyShareLink()" id="menuShare" style="display:none">🔗&nbsp; 보기 링크 복사</li>
       <li onclick="doImport()">📤&nbsp; 엑셀 불러오기</li>
       <li onclick="doExport()">📥&nbsp; 엑셀 내보내기</li>
       <li onclick="doReset()">🗑️&nbsp; 데이터 초기화</li>
@@ -866,18 +871,20 @@ const GROUPS = ['가족','친척','회사','대학교','고등학교','중학교
 const AMTS = [50000,70000,100000,150000,200000,300000];
 
 let side = localStorage.getItem('side') || 'groom';
-let cur = SIDE_TABS[side][0], view = 'list', editId = null;
+let cur = 'all', view = 'list', editId = null;
 let payType = 'cash', selAmt = 0, selGroup = '';
 let mPayType = 'cash', editGuestRef = null;
 let inputOpen = false;
 let data = load();
 
 function tabsForSide() { return SIDE_TABS[side] || SIDE_TABS.groom; }
+function mainTabs() { return ['all', ...tabsForSide()]; }            // 전체 + 3 sub-tabs
+function curList() { return cur === 'all' ? tabsForSide().flatMap(k => data[k]) : (data[cur] || []); }
 function setSide(s) {
   side = (s === 'bride') ? 'bride' : 'groom';
   localStorage.setItem('side', side);
   data.side = side;
-  if (!tabsForSide().includes(cur)) cur = tabsForSide()[0];
+  if (cur !== 'all' && !tabsForSide().includes(cur)) cur = tabsForSide()[0];
 }
 
 // Normalize a data object: ensure all buckets exist + migrate guest fields
@@ -960,11 +967,12 @@ function connectToRoom(code) {
       document.getElementById('roomCodeDisplay').style.display = 'block';
       document.getElementById('roomCodeText').textContent = code;
       document.getElementById('menuLeave').style.display = '';
+      document.getElementById('menuShare').style.display = '';
       document.getElementById('roomScreen').classList.add('hidden');
       updateConnBadge('', `· ${res.online}명`);
       const finishJoin = () => {
         localStorage.setItem('weddingGifts', JSON.stringify(data));
-        cur = tabsForSide()[0];
+        cur = 'all';
         renderAll();
         toast('방에 접속했습니다');
       };
@@ -990,6 +998,7 @@ function connectToRoom(code) {
     localStorage.removeItem('roomCode');
     document.getElementById('roomCodeDisplay').style.display = 'none';
     document.getElementById('menuLeave').style.display = 'none';
+    document.getElementById('menuShare').style.display = 'none';
     updateConnBadge('local', '오프라인');
     document.getElementById('roomScreen').classList.remove('hidden');
   });
@@ -1058,7 +1067,7 @@ function goOffline() {
   askSide((s) => {
     setSide(s);
     save();
-    cur = tabsForSide()[0];
+    cur = 'all';
     renderAll();
     document.getElementById('roomScreen').classList.add('hidden');
     updateConnBadge('local', '오프라인');
@@ -1089,6 +1098,7 @@ function leaveRoom() {
   localStorage.removeItem('roomCode');
   document.getElementById('roomCodeDisplay').style.display = 'none';
   document.getElementById('menuLeave').style.display = 'none';
+  document.getElementById('menuShare').style.display = 'none';
   updateConnBadge('local', '오프라인');
   toast('방에서 나갔습니다');
 }
@@ -1099,6 +1109,15 @@ function showRoomInfo() {
   } else if (!isOnline) {
     document.getElementById('roomScreen').classList.remove('hidden');
   }
+}
+
+function copyShareLink() {
+  if (!roomCode) { toast('먼저 방에 접속하세요'); return; }
+  const url = `${location.origin}${location.pathname}?room=${roomCode}`;
+  closeModal('menuModal');
+  navigator.clipboard.writeText(url)
+    .then(() => toast('보기 링크가 복사되었습니다'))
+    .catch(() => prompt('아래 링크를 복사하세요', url));
 }
 
 function copyRoomCode() {
@@ -1204,6 +1223,9 @@ async function adminDeleteRoom(code) {
 // Auto-reconnect on load
 function initSync() {
   serverUrl = detectServerUrl();
+  // 공유 링크(?room=코드)로 접속 시 코드 입력 없이 바로 해당 방으로
+  const urlCode = (new URLSearchParams(location.search).get('room') || '').replace(/[^0-9]/g, '');
+  if (urlCode.length === 6) roomCode = urlCode;
   if (roomCode && serverUrl) {
     document.getElementById('roomScreen').classList.add('hidden');
     connectToRoom(roomCode);
@@ -1235,16 +1257,19 @@ function uid() { return 'g'+Date.now()+'_'+Math.random().toString(36).slice(2,6)
 
 // === TABS ===
 function renderTabs() {
-  document.getElementById('tabs').innerHTML = tabsForSide().map(k => {
-    const n = data[k].length;
-    return `<button class="tab${k===cur?' active':''}" onclick="switchTab('${k}')">${TNAME[k]}<br><span class="cnt">${n}명</span></button>`;
-  }).join('');
+  const allN = tabsForSide().reduce((s,k)=>s+data[k].length, 0);
+  const subTabs = tabsForSide().map(k =>
+    `<button class="tab${k===cur?' active':''}" onclick="switchTab('${k}')">${TNAME[k]}<br><span class="cnt">${data[k].length}명</span></button>`
+  ).join('');
+  document.getElementById('tabs').innerHTML =
+    `<button class="tab tab-all${cur==='all'?' active':''}" onclick="switchTab('all')">전체<span class="cnt">&nbsp;${allN}명</span></button>` +
+    `<div class="tab-row">${subTabs}</div>`;
 }
 function switchTab(k) { cur=k; renderTabs(); renderQiTabs(); renderMiniSum(); renderList(); }
 
 // === MINI SUMMARY ===
 function renderMiniSum() {
-  const list = data[cur];
+  const list = curList();
   const total = list.reduce((s,g)=>(g.cash||0)+(g.transfer||0)+s,0);
   const att = list.filter(g=>g.attend).length;
   document.getElementById('miniSum').innerHTML =
@@ -1274,7 +1299,7 @@ function closeSheet() {
 
 let qiTab = cur;
 function renderQiTabs() {
-  qiTab = cur;
+  qiTab = (cur === 'all') ? tabsForSide()[0] : cur;
   document.getElementById('qiTabs').innerHTML = tabsForSide().map(k =>
     `<button class="qi-tab${k===qiTab?' on':''}" data-k="${k}" onclick="pickQiTab('${k}')">${TNAME[k]}</button>`
   ).join('');
@@ -1342,19 +1367,23 @@ function quickSave() {
 
 // === LIST ===
 function renderList() {
-  const list = data[cur];
+  const isAll = cur === 'all';
+  const src = isAll
+    ? tabsForSide().flatMap(k => data[k].map(g => ({ g, tab:k })))
+    : (data[cur]||[]).map(g => ({ g, tab:cur }));
   const q = (document.getElementById('searchInput').value||'').toLowerCase();
-  const filtered = q ? list.filter(g=>(g.name||'').toLowerCase().includes(q)||(g.group||'').toLowerCase().includes(q)) : list;
+  const filtered = q ? src.filter(o=>(o.g.name||'').toLowerCase().includes(q)||(o.g.group||'').toLowerCase().includes(q)) : src;
   const el = document.getElementById('glist');
 
   if(!filtered.length) { el.innerHTML=`<div class="empty">${q?'검색 결과가 없습니다':'하객을 추가해보세요 ✨'}</div>`; return; }
 
-  el.innerHTML = filtered.map(g => {
+  el.innerHTML = filtered.map(({g,tab}) => {
     const amt = (g.cash||0)+(g.transfer||0);
     const tp = g.cash&&g.transfer ? '현금+이체' : g.transfer ? '이체' : '현금';
+    const sideTag = isAll ? `<span class="gi-tag gi-tab-tag">${TNAME[tab]}</span>` : '';
     return `<div class="gi" onclick="openEdit('${g.id}')">
       <div class="gi-left">
-        <div class="gi-name">${esc(g.name)}${g.group?` <span class="gi-tag">${esc(g.group)}</span>`:''}</div>
+        <div class="gi-name">${esc(g.name)}${sideTag}${g.group?` <span class="gi-tag">${esc(g.group)}</span>`:''}</div>
         <div class="gi-money">${fmt(amt)}<span class="type">${tp}</span></div>
         ${g.note?`<div class="gi-note">${esc(g.note)}</div>`:''}
       </div>
@@ -1485,7 +1514,7 @@ function saveEdit() {
       break;
     }
   }
-  save(); cur=newTab; closeModal('editModal'); renderAll(); toast('수정 완료');
+  save(); if(cur!=='all') cur=newTab; closeModal('editModal'); renderAll(); toast('수정 완료');
 }
 
 function deleteGuest() {
@@ -1786,7 +1815,7 @@ document.addEventListener('keydown', function(e) {
   if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){e.preventDefault();doExport();return;}
   if(inInput) return;
   if(e.key==='n'||e.key==='N'){if(!inputOpen)toggleSheet();else document.getElementById('qiName').focus();return;}
-  if(e.key>='1'&&e.key<='3'){const t=tabsForSide()[parseInt(e.key)-1];if(t)switchTab(t);return;}
+  if(e.key>='1'&&e.key<='4'){const t=mainTabs()[parseInt(e.key)-1];if(t)switchTab(t);return;}
   if(e.key==='/'){e.preventDefault();document.getElementById('searchInput').focus();return;}
   if(e.key==='t'||e.key==='T'){if(inputOpen)setPayType(payType==='cash'?'transfer':'cash');return;}
   if(e.key==='s'||e.key==='S'){toggleStats();return;}
