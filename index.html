@@ -277,6 +277,8 @@ body {
   transition:all 0.12s;
 }
 .qi-grp.on { background:var(--primary); color:white; border-color:var(--primary); }
+.qi-grp.kbd { outline:2px solid var(--primary); outline-offset:2px; }
+.qi-type-row.kbd { outline:2px solid var(--primary); outline-offset:2px; }
 
 .qi-type-row {
   display:flex; gap:0; margin-bottom:10px;
@@ -728,7 +730,7 @@ input[type="file"] { display:none; }
     </div>
     <div class="qi-tabs" id="qiTabs"></div>
     <div class="qi-name-row">
-      <input type="text" class="qi-name" id="qiName" placeholder="이름" autocomplete="off">
+      <input type="text" class="qi-name" id="qiName" placeholder="이름" autocomplete="off" onfocus="qiStep='name'">
     </div>
     <div class="qi-groups" id="qiGroups"></div>
     <div class="qi-type-row">
@@ -737,7 +739,7 @@ input[type="file"] { display:none; }
     </div>
     <div class="qi-amounts" id="qiAmounts"></div>
     <div class="qi-custom-row">
-      <input type="text" inputmode="numeric" class="qi-custom" id="qiCustom" placeholder="직접 입력" onfocus="this.select()" oninput="onCustomAmount()">
+      <input type="text" inputmode="numeric" class="qi-custom" id="qiCustom" placeholder="직접 입력" onfocus="this.select();qiStep='amount'" oninput="onCustomAmount()">
       <span class="qi-won">원</span>
     </div>
     <div class="qi-saved" id="qiSaved"></div>
@@ -890,8 +892,7 @@ input[type="file"] { display:none; }
 <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleImport(event)">
 <div class="toast" id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<!-- socket.io needed for room sync; Excel libs are lazy-loaded on demand (see ensureXLSX/ensureExcelJS) -->
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 // All data buckets (always stored; only the room's side is shown)
@@ -1018,6 +1019,7 @@ function connectToRoom(code) {
         localStorage.setItem('weddingGifts', JSON.stringify(data));
         cur = 'all';
         renderAll();
+        qiFocusName();
         toast('방에 접속했습니다');
       };
       if (hadSide) { setSide(res.data.side); finishJoin(); }
@@ -1115,6 +1117,7 @@ function goOffline() {
     cur = 'all';
     renderAll();
     document.getElementById('roomScreen').classList.add('hidden');
+    qiFocusName();
     updateConnBadge('local', '오프라인');
   });
 }
@@ -1401,6 +1404,49 @@ function onCustomAmount() {
   selAmt = 0;
   renderAmounts();
 }
+// keyboard amount stepper: cycles base amounts, synced to the custom field live
+function qiSetAmount(a) {
+  selAmt = a;
+  document.getElementById('qiCustom').value = a ? a.toLocaleString() : '';
+  renderAmounts();
+}
+function qiAmtStep(dir) {
+  const i = AMTS.indexOf(selAmt);
+  const ni = i < 0 ? 0 : Math.min(Math.max(i + dir, 0), AMTS.length - 1);
+  qiSetAmount(AMTS[ni]);
+}
+
+// === DESKTOP KEYBOARD FLOW: 이름 → 구분 → 현금/이체 → 금액 → 저장 ===
+let qiStep = 'name';   // name | group | pay | amount
+let grpIdx = -1;
+function qiDesktop() { return window.innerWidth >= 1024; }
+function qiActive() {
+  return qiDesktop()
+    && document.getElementById('roomScreen').classList.contains('hidden')
+    && !document.querySelector('.modal-bg.show');
+}
+function qiFocusName() {
+  if(!qiDesktop()) return;
+  const n=document.getElementById('qiName');
+  if(n) { qiStep='name'; n.focus(); }
+}
+function qiClearCursors() {
+  document.querySelectorAll('#qiGroups .qi-grp.kbd').forEach(e=>e.classList.remove('kbd'));
+  const pr=document.querySelector('.qi-type-row'); if(pr) pr.classList.remove('kbd');
+}
+function qiPaintGroup() {
+  const chips=[...document.querySelectorAll('#qiGroups .qi-grp')];
+  chips.forEach((c,i)=>c.classList.toggle('kbd', i===grpIdx));
+  if(grpIdx>=0 && chips[grpIdx]) chips[grpIdx].scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function qiSetStep(step) {
+  qiStep = step;
+  qiClearCursors();
+  if(step==='name') { const n=document.getElementById('qiName'); if(n) n.focus(); }
+  else if(step==='group') { const n=document.getElementById('qiName'); if(n) n.blur(); qiPaintGroup(); }
+  else if(step==='pay') { const pr=document.querySelector('.qi-type-row'); if(pr) pr.classList.add('kbd'); }
+  else if(step==='amount') { const c=document.getElementById('qiCustom'); if(c) { c.focus(); c.select(); } }
+}
 
 function quickSave() {
   const name = document.getElementById('qiName').value.trim();
@@ -1429,13 +1475,44 @@ function quickSave() {
   document.getElementById('qiName').value = '';
   document.getElementById('qiCustom').value = '';
   selAmt = 0;
+  selGroup = '';               // 새 항목은 구분 없음에서 시작 (엔터 = skip)
+  setPayType('cash');          // 현금이 항상 기본
+  renderGroups();
   renderAmounts();
+  qiStep = 'name';
   document.getElementById('qiName').focus();
 
   renderTabs(); renderMiniSum(); renderList();
 }
 
 // === LIST ===
+// Build a single guest card. Log DOM is only built when logsOn (perf).
+function giCardHtml(g, tab, isAll, isDup) {
+  const amt = (g.cash||0)+(g.transfer||0);
+  const tp = g.cash&&g.transfer ? '현금+이체' : g.transfer ? '이체' : '현금';
+  const sideTag = isAll ? `<span class="gi-tag gi-tab-tag">${TNAME[tab]}</span>` : '';
+  const dupTag = isDup ? `<span class="gi-tag gi-dup-tag" onclick="event.stopPropagation();openDup('${g.id}')">⚠ 중복</span>` : '';
+  let logHtml = '';
+  if(logsOn) {
+    const logs = Array.isArray(g.logs) ? g.logs : [];
+    logHtml = logs.length
+      ? logs.slice().reverse().map(l=>`<div class="gi-log-line"><span class="gi-log-t">${fmtLogTime(l.t)}</span> ${esc(l.m)}</div>`).join('')
+      : `<div class="gi-log-line gi-log-empty">기록 없음</div>`;
+  }
+  return `<div class="gi${isDup?' is-dup':''}" data-id="${g.id}" data-tab="${tab}" onclick="openEdit('${g.id}')">
+      <div class="gi-left">
+        <div class="gi-name">${esc(g.name)}${dupTag}${sideTag}${g.group?` <span class="gi-tag">${esc(g.group)}</span>`:''}</div>
+        <div class="gi-money">${fmt(amt)}<span class="type">${tp}</span></div>
+        ${g.note?`<div class="gi-note">${esc(g.note)}</div>`:''}
+      </div>
+      <div class="gi-checks">
+        <div class="gi-ck${g.attend?' on':''}" onclick="event.stopPropagation();tog('${g.id}','attend')"><b>&#10003;</b><span>참석</span></div>
+        ${ckSel(g,'ceremony','예식',{'참석':'s-go','불참':'s-no'})}
+        ${ckSel(g,'thanks','감사',{'식권':'s-meal','답례품':'s-gift'})}
+      </div>
+      <div class="gi-log"><div class="gi-log-head">수정 로그</div>${logHtml}</div>
+    </div>`;
+}
 function renderList() {
   const isAll = cur === 'all';
   const src = isAll
@@ -1449,30 +1526,22 @@ function renderList() {
 
   const dupMap = dupCountMap();
   el.innerHTML = filtered.map(({g,tab}) => {
-    const amt = (g.cash||0)+(g.transfer||0);
-    const tp = g.cash&&g.transfer ? '현금+이체' : g.transfer ? '이체' : '현금';
-    const sideTag = isAll ? `<span class="gi-tag gi-tab-tag">${TNAME[tab]}</span>` : '';
     const isDup = !g.dupOk && (g.name||'').trim() && dupMap[dupSig(g)] > 1;
-    const dupTag = isDup ? `<span class="gi-tag gi-dup-tag" onclick="event.stopPropagation();openDup('${g.id}')">⚠ 중복</span>` : '';
-    const logs = Array.isArray(g.logs) ? g.logs : [];
-    const logHtml = logs.length
-      ? logs.slice().reverse().map(l=>`<div class="gi-log-line"><span class="gi-log-t">${fmtLogTime(l.t)}</span> ${esc(l.m)}</div>`).join('')
-      : `<div class="gi-log-line gi-log-empty">기록 없음</div>`;
-    return `<div class="gi${isDup?' is-dup':''}" onclick="openEdit('${g.id}')">
-      <div class="gi-left">
-        <div class="gi-name">${esc(g.name)}${dupTag}${sideTag}${g.group?` <span class="gi-tag">${esc(g.group)}</span>`:''}</div>
-        <div class="gi-money">${fmt(amt)}<span class="type">${tp}</span></div>
-        ${g.note?`<div class="gi-note">${esc(g.note)}</div>`:''}
-      </div>
-      <div class="gi-checks">
-        <div class="gi-ck${g.attend?' on':''}" onclick="event.stopPropagation();tog('${g.id}','attend')"><b>&#10003;</b><span>참석</span></div>
-        ${ckSel(g,'ceremony','예식',{'참석':'s-go','불참':'s-no'})}
-        ${ckSel(g,'thanks','감사',{'식권':'s-meal','답례품':'s-gift'})}
-      </div>
-      <div class="gi-log"><div class="gi-log-head">수정 로그</div>${logHtml}</div>
-    </div>`;
+    return giCardHtml(g, tab, isAll, isDup);
   }).join('') + `<div class="log-toggle" id="logToggle" onclick="toggleLogs()"></div>`;
   updateLogToggle();
+}
+// Update just one card in place (no full re-render) — used by toggles.
+function updateRow(id) {
+  const card = document.querySelector(`.gi[data-id="${id}"]`);
+  const g = findGuest(id);
+  if(!card || !g) { renderList(); renderMiniSum(); return; }
+  const isAll = cur === 'all';
+  const tab = card.getAttribute('data-tab');
+  const dm = dupCountMap();
+  const isDup = !g.dupOk && (g.name||'').trim() && dm[dupSig(g)] > 1;
+  card.outerHTML = giCardHtml(g, tab, isAll, isDup);
+  renderMiniSum();
 }
 
 // selection check cell (cycles: '' -> opt1 -> opt2 -> '')
@@ -1493,7 +1562,7 @@ function tog(id,field) {
   if(!g) return;
   const before=g[field]; g[field]=!g[field];
   addLog(g, `${FIELD_LABEL[field]||field} ${before?'O→X':'X→O'}`);
-  save(); renderList(); renderMiniSum();
+  save(); updateRow(id);
 }
 function cycle(id,field,opts) {
   const g=findGuest(id);
@@ -1503,7 +1572,7 @@ function cycle(id,field,opts) {
   const next=(i===opts.length-1) ? '' : opts[i+1];
   g[field]=next;
   addLog(g, `${FIELD_LABEL[field]||field} ${curv||'없음'}→${next||'없음'}`);
-  save(); renderList(); renderMiniSum();
+  save(); updateRow(id);
 }
 
 // === DUPLICATE RESOLUTION (통합 = keep one / 유지 = dismiss warning) ===
@@ -1544,10 +1613,11 @@ function dupKeep() {
 // === EDIT-LOG REVEAL (hidden; over-scroll past the list bottom or tap reveals) ===
 let logsOn = false;
 function setLogs(on) {
+  if(logsOn === on) return;
   logsOn = on;
   const gl=document.getElementById('glist');
   if(gl) gl.classList.toggle('logs-on', on);
-  updateLogToggle();
+  renderList();   // (re)build log DOM only when revealed
 }
 function toggleLogs() { setLogs(!logsOn); }
 function updateLogToggle() {
@@ -1757,10 +1827,16 @@ function openMenu(){showModal('menuModal');}
 // === TOAST ===
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800);}
 
-// === IMPORT/EXPORT ===
+// === IMPORT/EXPORT (Excel libs lazy-loaded on first use) ===
+function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load fail: '+src));document.head.appendChild(s);});}
+let _xlsxP=null,_exceljsP=null;
+function ensureXLSX(){return _xlsxP||(_xlsxP=window.XLSX?Promise.resolve():loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'));}
+function ensureExcelJS(){return _exceljsP||(_exceljsP=window.ExcelJS?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js'));}
+
 function doImport(){closeModal('menuModal');document.getElementById('fileInput').click();}
-function handleImport(ev){
+async function handleImport(ev){
   const f=ev.target.files[0]; if(!f)return;
+  try{ await ensureXLSX(); }catch(e){ toast('엑셀 라이브러리 로드 실패'); return; }
   const r=new FileReader();
   r.onload=function(e){
     try{
@@ -1807,6 +1883,7 @@ function handleImport(ev){
 
 async function doExport(){
   closeModal('menuModal');
+  try{ await ensureExcelJS(); }catch(e){ toast('엑셀 라이브러리 로드 실패'); return; }
   try{
   const wb=new ExcelJS.Workbook();
   const HC='0066CC',LC='EAF3FC',BC='D1D1D6',WH='FFFFFF';
@@ -1972,17 +2049,45 @@ document.addEventListener('keydown', function(e) {
     if(document.getElementById('adminModal').classList.contains('show')){closeModal('adminModal');return;}
     if(document.getElementById('editModal').classList.contains('show')){closeModal('editModal');return;}
     if(document.getElementById('menuModal').classList.contains('show')){closeModal('menuModal');return;}
+    if(document.getElementById('dupModal').classList.contains('show')){closeModal('dupModal');return;}
+    if(qiDesktop()&&(qiStep==='group'||qiStep==='pay')){qiSetStep('name');return;}
     if(inputOpen){closeSheet();return;}
     if(inInput){e.target.blur();return;}
     return;
   }
-  if(e.key==='Enter'&&inputOpen&&inInput) {
+
+  // === DESKTOP STEPPED INPUT FLOW (이름 → 구분 → 결제 → 금액 → 저장) ===
+  if(qiActive()) {
+    const onName = e.target.id==='qiName';
+    const onCustom = e.target.id==='qiCustom';
+    if(qiStep==='name' && onName) {
+      if(e.key==='Enter'){ e.preventDefault();
+        if(!document.getElementById('qiName').value.trim()){ toast('이름을 입력하세요'); return; }
+        grpIdx=-1; qiSetStep('group'); return;
+      }
+    } else if(qiStep==='group' && !inInput) {
+      if(e.key==='ArrowRight'||e.key==='ArrowDown'){ e.preventDefault(); grpIdx=Math.min(grpIdx+1,GROUPS.length-1); qiPaintGroup(); return; }
+      if(e.key==='ArrowLeft'||e.key==='ArrowUp'){ e.preventDefault(); grpIdx=Math.max(grpIdx-1,-1); qiPaintGroup(); return; }
+      if(e.key==='Enter'){ e.preventDefault(); if(grpIdx>=0){ selGroup=GROUPS[grpIdx]; renderGroups(); } if(payType!=='cash'&&payType!=='transfer') setPayType('cash'); qiSetStep('pay'); return; }
+      e.preventDefault(); return;   // keep focus in the flow
+    } else if(qiStep==='pay' && !inInput) {
+      if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){ e.preventDefault(); setPayType(payType==='cash'?'transfer':'cash'); return; }
+      if(e.key==='Enter'){ e.preventDefault(); qiSetStep('amount'); return; }
+      e.preventDefault(); return;
+    } else if(qiStep==='amount' && onCustom) {
+      if(e.key==='ArrowUp'){ e.preventDefault(); qiAmtStep(1); return; }
+      if(e.key==='ArrowDown'){ e.preventDefault(); qiAmtStep(-1); return; }
+      if(e.key==='Enter'){ e.preventDefault(); quickSave(); return; }
+    }
+  } else if(e.key==='Enter'&&inputOpen&&inInput) {
+    // mobile: Enter inside the sheet saves directly
     const panel=document.getElementById('qinput');
     if(panel.contains(e.target)){e.preventDefault();quickSave();return;}
   }
+
   if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){e.preventDefault();doExport();return;}
   if(inInput) return;
-  if(e.key==='n'||e.key==='N'){if(!inputOpen)toggleSheet();else document.getElementById('qiName').focus();return;}
+  if(e.key==='n'||e.key==='N'){if(qiDesktop())qiFocusName();else if(!inputOpen)toggleSheet();else document.getElementById('qiName').focus();return;}
   if(e.key>='1'&&e.key<='4'){const t=mainTabs()[parseInt(e.key)-1];if(t)switchTab(t);return;}
   if(e.key==='/'){e.preventDefault();document.getElementById('searchInput').focus();return;}
   if(e.key==='t'||e.key==='T'){if(inputOpen)setPayType(payType==='cash'?'transfer':'cash');return;}
