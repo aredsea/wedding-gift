@@ -62,6 +62,7 @@ body {
 .hdr-btn:active { background:rgba(0,102,204,0.12); }
 .hdr-kbd { display:none; }
 @media(min-width:768px){ .hdr-kbd{ display:inline-flex; } }
+.hdr-icon { font-size:17px; padding:8px 7px; }
 
 .mini-sum {
   display:flex; gap:8px; padding:8px 0 2px; font-size:13px; color:var(--text2);
@@ -132,28 +133,43 @@ body {
 .gi {
   background:var(--card); border-radius:var(--radius);
   padding:16px; margin-bottom:10px;
-  display:flex; align-items:center; gap:14px;
+  display:flex; align-items:center; flex-wrap:wrap; gap:14px;
   box-shadow:var(--shadow); cursor:pointer;
   transition:all 0.15s;
 }
 .gi:active { transform:scale(0.985); }
 @media(hover:hover){ .gi:hover{box-shadow:var(--shadow-lg);} }
+.gi.is-dup { box-shadow:0 0 0 1.5px var(--warn,#ff9500) inset, var(--shadow); }
 
 .gi-left { flex:1; min-width:0; }
 .gi-name {
-  font-size:16px; font-weight:700; display:flex;
+  font-size:16px; font-weight:700; display:flex; flex-wrap:wrap;
   align-items:center; gap:6px; letter-spacing:-0.2px;
 }
 .gi-tag {
   font-size:11px; padding:2px 8px; border-radius:6px;
   background:var(--primary-bg); color:var(--primary); font-weight:600;
 }
+.gi-dup-tag { background:#fff4e5; color:#c75e00; cursor:pointer; }
 .gi-money { font-size:15px; font-weight:700; color:var(--primary); margin-top:4px; }
 .gi-money .type { font-weight:400; color:var(--text2); font-size:12px; margin-left:4px; }
 .gi-note {
   font-size:12px; color:var(--text2); margin-top:3px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
+
+/* per-item edit log (hidden until extra scroll reveals all) */
+.gi-log { flex-basis:100%; display:none; border-top:1px dashed var(--border); padding-top:10px; margin-top:2px; }
+.glist.logs-on .gi-log { display:block; }
+.gi-log-head { font-size:11px; font-weight:700; color:var(--text3); margin-bottom:4px; }
+.gi-log-line { font-size:12px; color:var(--text2); line-height:1.6; }
+.gi-log-t { color:var(--text3); font-variant-numeric:tabular-nums; margin-right:4px; }
+.gi-log-empty { color:var(--text3); }
+.log-toggle {
+  text-align:center; font-size:12px; font-weight:600; color:var(--text3);
+  padding:10px; cursor:pointer; user-select:none;
+}
+.log-toggle:active { color:var(--text2); }
 
 .gi-checks { display:flex; gap:6px; flex-shrink:0; }
 .gi-ck {
@@ -381,6 +397,14 @@ body {
   border:none; background:#FFF0F0; color:var(--accent);
   font-size:15px; font-weight:700; cursor:pointer; margin-top:10px;
 }
+
+/* duplicate modal */
+.dup-info { font-size:15px; line-height:1.7; color:var(--text); padding:8px 2px 18px; text-align:center; }
+.dup-actions { display:flex; flex-direction:column; gap:10px; }
+.dup-btn { padding:15px; border-radius:var(--radius-sm); border:none; font-size:16px; font-weight:700; cursor:pointer; transition:transform 0.12s; }
+.dup-btn.merge { background:var(--primary); color:#fff; }
+.dup-btn.keep { background:var(--bg); color:var(--text); border:2px solid var(--border); }
+.dup-btn:active { transform:scale(0.97); }
 
 /* === SEGMENTED CONTROL (edit modal) === */
 .seg {
@@ -668,6 +692,8 @@ input[type="file"] { display:none; }
     <h1>💒 축의금 정리</h1>
     <div class="hdr-right">
       <button class="conn-badge local" id="connBadge" onclick="showRoomInfo()"><span class="dot"></span><span id="connText">오프라인</span></button>
+      <button class="hdr-btn hdr-icon" onclick="copyShareLink()" id="hdrShare" style="display:none" title="초대 링크 복사">🔗</button>
+      <button class="hdr-btn hdr-icon" onclick="doExport()" title="엑셀 내보내기">📥</button>
       <button class="hdr-btn hdr-kbd" onclick="toggleShortcuts()" title="단축키 (?)">⌨️</button>
       <button class="hdr-btn" onclick="toggleStats()" id="statsBtn">통계</button>
       <button class="hdr-btn" onclick="openMenu()">메뉴</button>
@@ -810,6 +836,21 @@ input[type="file"] { display:none; }
   </div>
 </div>
 
+<!-- DUPLICATE MODAL -->
+<div class="modal-bg" id="dupModal">
+  <div class="modal">
+    <div class="m-head">
+      <button class="m-btn m-close" onclick="closeModal('dupModal')">닫기</button>
+      <h2>⚠ 중복 항목</h2><span></span>
+    </div>
+    <div class="dup-info" id="dupInfo"></div>
+    <div class="dup-actions">
+      <button class="dup-btn merge" onclick="dupMerge()">통합 · 하나만 남기기</button>
+      <button class="dup-btn keep" onclick="dupKeep()">유지 · 둘 다 보존</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN MODAL -->
 <div class="modal-bg" id="adminModal">
   <div class="modal">
@@ -896,7 +937,9 @@ function migrateGuest(g) {
     attend:   g.attend   !== undefined ? !!g.attend : !!g.expected,
     ceremony: g.ceremony !== undefined ? g.ceremony : (g.attended ? '참석' : ''),
     thanks:   g.thanks   !== undefined ? g.thanks   : (g.thanked  ? '답례품' : ''),
-    note: g.note || ''
+    note: g.note || '',
+    logs: Array.isArray(g.logs) ? g.logs : [],
+    dupOk: !!g.dupOk
   };
 }
 function normalize(d) {
@@ -968,6 +1011,7 @@ function connectToRoom(code) {
       document.getElementById('roomCodeText').textContent = code;
       document.getElementById('menuLeave').style.display = '';
       document.getElementById('menuShare').style.display = '';
+      document.getElementById('hdrShare').style.display = '';
       document.getElementById('roomScreen').classList.add('hidden');
       updateConnBadge('', `· ${res.online}명`);
       const finishJoin = () => {
@@ -999,6 +1043,7 @@ function connectToRoom(code) {
     document.getElementById('roomCodeDisplay').style.display = 'none';
     document.getElementById('menuLeave').style.display = 'none';
     document.getElementById('menuShare').style.display = 'none';
+    document.getElementById('hdrShare').style.display = 'none';
     updateConnBadge('local', '오프라인');
     document.getElementById('roomScreen').classList.remove('hidden');
   });
@@ -1099,6 +1144,7 @@ function leaveRoom() {
   document.getElementById('roomCodeDisplay').style.display = 'none';
   document.getElementById('menuLeave').style.display = 'none';
   document.getElementById('menuShare').style.display = 'none';
+  document.getElementById('hdrShare').style.display = 'none';
   updateConnBadge('local', '오프라인');
   toast('방에서 나갔습니다');
 }
@@ -1255,6 +1301,29 @@ function parse(s) { return parseInt(String(s).replace(/[^0-9]/g,''))||0; }
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 function uid() { return 'g'+Date.now()+'_'+Math.random().toString(36).slice(2,6); }
 
+// === EDIT LOG (per-guest modification history) ===
+function addLog(g, m) {
+  if(!Array.isArray(g.logs)) g.logs=[];
+  g.logs.push({ t:Date.now(), m });
+  if(g.logs.length>30) g.logs = g.logs.slice(-30);
+}
+function fmtLogTime(t) {
+  const d=new Date(t), p=n=>String(n).padStart(2,'0');
+  return `${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// === DUPLICATES (same name + same total amount, within the side) ===
+function gAmt(g) { return (g.cash||0)+(g.transfer||0); }
+function dupSig(g) { return (g.name||'').trim()+'|'+gAmt(g); }
+function dupCountMap() {
+  const m={};
+  for(const k of tabsForSide()) for(const g of data[k]) {
+    if(g.dupOk || !(g.name||'').trim()) continue;
+    const s=dupSig(g); m[s]=(m[s]||0)+1;
+  }
+  return m;
+}
+
 // === TABS ===
 function renderTabs() {
   const allN = tabsForSide().reduce((s,k)=>s+data[k].length, 0);
@@ -1345,8 +1414,9 @@ function quickSave() {
     cash: payType==='cash' ? amount : 0,
     transfer: payType==='transfer' ? amount : 0,
     attend: true, ceremony: '참석', thanks: '',
-    note: ''
+    note: '', logs: [], dupOk: false
   };
+  addLog(guest, `추가 · ${fmt(amount)}${selGroup?' · '+selGroup:''}`);
 
   data[qiTab].push(guest);
   save();
@@ -1377,13 +1447,20 @@ function renderList() {
 
   if(!filtered.length) { el.innerHTML=`<div class="empty">${q?'검색 결과가 없습니다':'하객을 추가해보세요 ✨'}</div>`; return; }
 
+  const dupMap = dupCountMap();
   el.innerHTML = filtered.map(({g,tab}) => {
     const amt = (g.cash||0)+(g.transfer||0);
     const tp = g.cash&&g.transfer ? '현금+이체' : g.transfer ? '이체' : '현금';
     const sideTag = isAll ? `<span class="gi-tag gi-tab-tag">${TNAME[tab]}</span>` : '';
-    return `<div class="gi" onclick="openEdit('${g.id}')">
+    const isDup = !g.dupOk && (g.name||'').trim() && dupMap[dupSig(g)] > 1;
+    const dupTag = isDup ? `<span class="gi-tag gi-dup-tag" onclick="event.stopPropagation();openDup('${g.id}')">⚠ 중복</span>` : '';
+    const logs = Array.isArray(g.logs) ? g.logs : [];
+    const logHtml = logs.length
+      ? logs.slice().reverse().map(l=>`<div class="gi-log-line"><span class="gi-log-t">${fmtLogTime(l.t)}</span> ${esc(l.m)}</div>`).join('')
+      : `<div class="gi-log-line gi-log-empty">기록 없음</div>`;
+    return `<div class="gi${isDup?' is-dup':''}" onclick="openEdit('${g.id}')">
       <div class="gi-left">
-        <div class="gi-name">${esc(g.name)}${sideTag}${g.group?` <span class="gi-tag">${esc(g.group)}</span>`:''}</div>
+        <div class="gi-name">${esc(g.name)}${dupTag}${sideTag}${g.group?` <span class="gi-tag">${esc(g.group)}</span>`:''}</div>
         <div class="gi-money">${fmt(amt)}<span class="type">${tp}</span></div>
         ${g.note?`<div class="gi-note">${esc(g.note)}</div>`:''}
       </div>
@@ -1392,8 +1469,10 @@ function renderList() {
         ${ckSel(g,'ceremony','예식',{'참석':'s-go','불참':'s-no'})}
         ${ckSel(g,'thanks','감사',{'식권':'s-meal','답례품':'s-gift'})}
       </div>
+      <div class="gi-log"><div class="gi-log-head">수정 로그</div>${logHtml}</div>
     </div>`;
-  }).join('');
+  }).join('') + `<div class="log-toggle" id="logToggle" onclick="toggleLogs()"></div>`;
+  updateLogToggle();
 }
 
 // selection check cell (cycles: '' -> opt1 -> opt2 -> '')
@@ -1404,22 +1483,90 @@ function ckSel(g, field, hint, opts) {
   return `<div class="gi-ck${cls}" onclick="event.stopPropagation();cycle('${g.id}','${field}',${JSON.stringify(Object.keys(opts)).replace(/"/g,'&quot;')})">${esc(label)}</div>`;
 }
 
+const FIELD_LABEL = { attend:'참석', ceremony:'결혼식', thanks:'감사 인사' };
 function findGuest(id) {
   for(const k of ALL_TABS) { const g=data[k].find(x=>x.id===id); if(g) return g; }
   return null;
 }
 function tog(id,field) {
   const g=findGuest(id);
-  if(g){ g[field]=!g[field]; save(); renderList(); renderMiniSum(); }
+  if(!g) return;
+  const before=g[field]; g[field]=!g[field];
+  addLog(g, `${FIELD_LABEL[field]||field} ${before?'O→X':'X→O'}`);
+  save(); renderList(); renderMiniSum();
 }
 function cycle(id,field,opts) {
   const g=findGuest(id);
   if(!g) return;
-  const cur=g[field]||'';
-  const i=opts.indexOf(cur);
-  g[field] = (i===opts.length-1) ? '' : opts[i+1];
+  const curv=g[field]||'';
+  const i=opts.indexOf(curv);
+  const next=(i===opts.length-1) ? '' : opts[i+1];
+  g[field]=next;
+  addLog(g, `${FIELD_LABEL[field]||field} ${curv||'없음'}→${next||'없음'}`);
   save(); renderList(); renderMiniSum();
 }
+
+// === DUPLICATE RESOLUTION (통합 = keep one / 유지 = dismiss warning) ===
+let dupIds = [];
+function openDup(id) {
+  const g=findGuest(id); if(!g) return;
+  const sig=dupSig(g);
+  dupIds=[];
+  for(const k of tabsForSide()) for(const x of data[k])
+    if(!x.dupOk && (x.name||'').trim() && dupSig(x)===sig) dupIds.push(x.id);
+  if(dupIds.length<2) { renderAll(); return; }
+  document.getElementById('dupInfo').innerHTML =
+    `<b>${esc(g.name)}</b> · ${fmt(gAmt(g))}<br>같은 이름·금액 항목이 <b>${dupIds.length}건</b> 있습니다.`;
+  showModal('dupModal');
+}
+function dupMerge() {
+  if(dupIds.length<2) { closeModal('dupModal'); return; }
+  const idset=new Set(dupIds);
+  let keeper=null;
+  for(const k of tabsForSide()) {
+    data[k] = data[k].filter(g=>{
+      if(!idset.has(g.id)) return true;
+      if(!keeper) { keeper=g; return true; }   // keep first occurrence
+      return false;                             // remove the rest
+    });
+  }
+  if(keeper) addLog(keeper, `중복 통합 (${dupIds.length}건 → 1건)`);
+  dupIds=[];
+  save(); closeModal('dupModal'); renderAll(); toast('중복 항목을 통합했습니다');
+}
+function dupKeep() {
+  const idset=new Set(dupIds);
+  for(const k of tabsForSide()) for(const g of data[k]) if(idset.has(g.id)) g.dupOk=true;
+  dupIds=[];
+  save(); closeModal('dupModal'); renderAll(); toast('중복 경고를 해제했습니다');
+}
+
+// === EDIT-LOG REVEAL (hidden; over-scroll past the list bottom or tap reveals) ===
+let logsOn = false;
+function setLogs(on) {
+  logsOn = on;
+  const gl=document.getElementById('glist');
+  if(gl) gl.classList.toggle('logs-on', on);
+  updateLogToggle();
+}
+function toggleLogs() { setLogs(!logsOn); }
+function updateLogToggle() {
+  const t=document.getElementById('logToggle');
+  if(t) t.textContent = logsOn ? '▴ 수정 로그 숨기기' : '▾ 더 내리면 수정 로그 보기';
+}
+function onScrollReveal(dir) {
+  const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 6;
+  if(dir>0 && atBottom && !logsOn) setLogs(true);
+  else if(dir<0 && window.scrollY < 60 && logsOn) setLogs(false);
+}
+window.addEventListener('wheel', (e)=>{ if(view==='list') onScrollReveal(e.deltaY); }, {passive:true});
+let _touchY = 0;
+window.addEventListener('touchstart', (e)=>{ if(e.touches[0]) _touchY=e.touches[0].clientY; }, {passive:true});
+window.addEventListener('touchmove', (e)=>{
+  if(view!=='list' || !e.touches[0]) return;
+  const y=e.touches[0].clientY, dy=_touchY-y; _touchY=y;   // dy>0 = swipe up = scroll-down intent
+  onScrollReveal(dy);
+}, {passive:true});
 
 // === EDIT MODAL ===
 function segSet(groupId, val) {
@@ -1496,6 +1643,7 @@ function saveEdit() {
   const group = grpEl ? grpEl.dataset.g : (editGuestRef ? editGuestRef.group||'' : '');
   const amount = mAmtVal();
 
+  const old = editGuestRef || {};
   const gd = {
     id: editId, name, group,
     cash: mPayType==='cash' ? amount : 0,
@@ -1503,8 +1651,28 @@ function saveEdit() {
     attend: document.getElementById('mAttend').classList.contains('on'),
     ceremony: segVal('mCeremony'),
     thanks: segVal('mThanks'),
-    note: document.getElementById('mNote').value.trim()
+    note: document.getElementById('mNote').value.trim(),
+    logs: Array.isArray(old.logs) ? old.logs.slice() : [],
+    dupOk: !!old.dupOk
   };
+
+  // original tab (소속) of this guest
+  let origTab = null;
+  for(const k of ALL_TABS) if(data[k].some(x=>x.id===editId)) { origTab=k; break; }
+
+  // record what changed
+  const ch = [];
+  if((old.name||'') !== gd.name) ch.push(`이름 ${old.name||'-'}→${gd.name}`);
+  if(((old.cash||0)+(old.transfer||0)) !== amount) ch.push(`금액 ${fmt((old.cash||0)+(old.transfer||0))}→${fmt(amount)}`);
+  if((old.group||'') !== gd.group) ch.push(`구분 ${old.group||'-'}→${gd.group||'-'}`);
+  if(origTab && origTab !== newTab) ch.push(`소속 ${TNAME[origTab]}→${TNAME[newTab]}`);
+  if(!!old.attend !== gd.attend) ch.push(`참석 ${old.attend?'O':'X'}→${gd.attend?'O':'X'}`);
+  if((old.ceremony||'') !== gd.ceremony) ch.push(`결혼식 ${old.ceremony||'없음'}→${gd.ceremony||'없음'}`);
+  if((old.thanks||'') !== gd.thanks) ch.push(`감사 ${old.thanks||'없음'}→${gd.thanks||'없음'}`);
+  if((old.note||'') !== gd.note) ch.push('비고 변경');
+  if(ch.length) addLog(gd, '수정: '+ch.join(', '));
+  // name/amount changed → re-evaluate duplicate warning
+  if((old.name||'')!==gd.name || ((old.cash||0)+(old.transfer||0))!==amount) gd.dupOk=false;
 
   for(const k of ALL_TABS) {
     const idx = data[k].findIndex(x=>x.id===editId);
