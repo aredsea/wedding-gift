@@ -277,8 +277,7 @@ body {
   transition:all 0.12s;
 }
 .qi-grp.on { background:var(--primary); color:white; border-color:var(--primary); }
-.qi-grp.kbd { outline:2px solid var(--primary); outline-offset:2px; }
-.qi-type-row.kbd { outline:2px solid var(--primary); outline-offset:2px; }
+.qi-grp.kbd, .qi-type.kbd, .qi-amt.kbd { outline:2px solid var(--primary); outline-offset:2px; position:relative; z-index:1; }
 
 .qi-type-row {
   display:flex; gap:0; margin-bottom:10px;
@@ -710,13 +709,13 @@ input[type="file"] { display:none; }
 <!-- SHORTCUT GUIDE -->
 <div class="shortcut-bar" id="shortcutBar">
   <span class="sk"><kbd>N</kbd> 추가</span>
+  <span class="sk"><kbd>←</kbd><kbd>→</kbd> 이동</span>
+  <span class="sk"><kbd>Space</kbd> 선택</span>
+  <span class="sk"><kbd>Enter</kbd> 다음</span>
   <span class="sk"><kbd>1</kbd>~<kbd>4</kbd> 탭</span>
-  <span class="sk"><kbd>T</kbd> 현금/이체</span>
-  <span class="sk"><kbd>Enter</kbd> 저장</span>
   <span class="sk"><kbd>/</kbd> 검색</span>
   <span class="sk"><kbd>S</kbd> 통계</span>
   <span class="sk"><kbd>Esc</kbd> 닫기</span>
-  <span class="sk"><kbd>Ctrl+E</kbd> 내보내기</span>
   <span class="sk"><kbd>?</kbd> 도움말</span>
 </div>
 
@@ -1404,48 +1403,59 @@ function onCustomAmount() {
   selAmt = 0;
   renderAmounts();
 }
-// keyboard amount stepper: cycles base amounts, synced to the custom field live
 function qiSetAmount(a) {
   selAmt = a;
   document.getElementById('qiCustom').value = a ? a.toLocaleString() : '';
   renderAmounts();
 }
-function qiAmtStep(dir) {
-  const i = AMTS.indexOf(selAmt);
-  const ni = i < 0 ? 0 : Math.min(Math.max(i + dir, 0), AMTS.length - 1);
-  qiSetAmount(AMTS[ni]);
-}
 
-// === DESKTOP KEYBOARD FLOW: 이름 → 구분 → 현금/이체 → 금액 → 저장 ===
-let qiStep = 'name';   // name | group | pay | amount
-let grpIdx = -1;
+// === DESKTOP KEYBOARD PROTOCOL — ←→ 이동 · Space 선택 · Enter 다음 ===
+// 흐름: 이름 → 구분 → 현금/이체 → 금액 → 저장
+let qiStep = 'name';                  // name | group | pay | amount
+let grpIdx = 0, payIdx = 0, amtIdx = 0, amtCustom = false;
+const PAYS = ['cash','transfer'];
 function qiDesktop() { return window.innerWidth >= 1024; }
 function qiActive() {
   return qiDesktop()
     && document.getElementById('roomScreen').classList.contains('hidden')
     && !document.querySelector('.modal-bg.show');
 }
-function qiFocusName() {
-  if(!qiDesktop()) return;
-  const n=document.getElementById('qiName');
-  if(n) { qiStep='name'; n.focus(); }
-}
+function qiFocusName() { if(qiDesktop()) qiSetStep('name'); }
 function qiClearCursors() {
-  document.querySelectorAll('#qiGroups .qi-grp.kbd').forEach(e=>e.classList.remove('kbd'));
-  const pr=document.querySelector('.qi-type-row'); if(pr) pr.classList.remove('kbd');
+  document.querySelectorAll('#qiGroups .qi-grp.kbd, .qi-type.kbd, #qiAmounts .qi-amt.kbd').forEach(e=>e.classList.remove('kbd'));
 }
 function qiPaintGroup() {
   const chips=[...document.querySelectorAll('#qiGroups .qi-grp')];
   chips.forEach((c,i)=>c.classList.toggle('kbd', i===grpIdx));
-  if(grpIdx>=0 && chips[grpIdx]) chips[grpIdx].scrollIntoView({block:'nearest',inline:'nearest'});
+  if(chips[grpIdx]) chips[grpIdx].scrollIntoView({block:'nearest',inline:'nearest'});
+}
+function qiPaintPay() {
+  document.querySelectorAll('.qi-type').forEach((c,i)=>c.classList.toggle('kbd', i===payIdx));
+}
+function qiPaintAmt() {
+  document.querySelectorAll('#qiAmounts .qi-amt').forEach((c,i)=>c.classList.toggle('kbd', i===amtIdx && !amtCustom));
 }
 function qiSetStep(step) {
   qiStep = step;
   qiClearCursors();
+  const c=document.getElementById('qiCustom');
   if(step==='name') { const n=document.getElementById('qiName'); if(n) n.focus(); }
-  else if(step==='group') { const n=document.getElementById('qiName'); if(n) n.blur(); qiPaintGroup(); }
-  else if(step==='pay') { const pr=document.querySelector('.qi-type-row'); if(pr) pr.classList.add('kbd'); }
-  else if(step==='amount') { const c=document.getElementById('qiCustom'); if(c) { c.focus(); c.select(); } }
+  else if(step==='group') { document.getElementById('qiName').blur(); grpIdx=0; qiPaintGroup(); }
+  else if(step==='pay') { payIdx = Math.max(0, PAYS.indexOf(payType)); qiPaintPay(); }
+  else if(step==='amount') { amtCustom=false; amtIdx=0; if(c) c.blur(); qiPaintAmt(); }
+}
+function qiMove(cur, len, key) {
+  if(key==='ArrowRight'||key==='ArrowDown') return Math.min(cur+1, len-1);
+  if(key==='ArrowLeft'||key==='ArrowUp')   return Math.max(cur-1, 0);
+  return cur;
+}
+// digit pressed while browsing templates → jump to 직접 입력
+function qiAmtToCustom(digit) {
+  amtCustom = true; selAmt = 0;
+  const c=document.getElementById('qiCustom');
+  c.value = digit; renderAmounts(); qiPaintAmt();
+  c.focus();
+  try { c.setSelectionRange(c.value.length, c.value.length); } catch(e){}
 }
 
 function quickSave() {
@@ -2056,28 +2066,45 @@ document.addEventListener('keydown', function(e) {
     return;
   }
 
-  // === DESKTOP STEPPED INPUT FLOW (이름 → 구분 → 결제 → 금액 → 저장) ===
+  // === DESKTOP INPUT PROTOCOL — ←→ 이동 · Space 선택 · Enter 다음 ===
   if(qiActive()) {
     const onName = e.target.id==='qiName';
     const onCustom = e.target.id==='qiCustom';
+    const k = e.key;
+    const ARROW = ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(k);
+    // 이름: 입력 후 Enter → 구분
     if(qiStep==='name' && onName) {
-      if(e.key==='Enter'){ e.preventDefault();
+      if(k==='Enter'){ e.preventDefault();
         if(!document.getElementById('qiName').value.trim()){ toast('이름을 입력하세요'); return; }
-        grpIdx=-1; qiSetStep('group'); return;
+        qiSetStep('group'); return;
       }
-    } else if(qiStep==='group' && !inInput) {
-      if(e.key==='ArrowRight'||e.key==='ArrowDown'){ e.preventDefault(); grpIdx=Math.min(grpIdx+1,GROUPS.length-1); qiPaintGroup(); return; }
-      if(e.key==='ArrowLeft'||e.key==='ArrowUp'){ e.preventDefault(); grpIdx=Math.max(grpIdx-1,-1); qiPaintGroup(); return; }
-      if(e.key==='Enter'){ e.preventDefault(); if(grpIdx>=0){ selGroup=GROUPS[grpIdx]; renderGroups(); } if(payType!=='cash'&&payType!=='transfer') setPayType('cash'); qiSetStep('pay'); return; }
-      e.preventDefault(); return;   // keep focus in the flow
-    } else if(qiStep==='pay' && !inInput) {
-      if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){ e.preventDefault(); setPayType(payType==='cash'?'transfer':'cash'); return; }
-      if(e.key==='Enter'){ e.preventDefault(); qiSetStep('amount'); return; }
+    }
+    // 구분: ←→ 이동 · Space 선택/해제 · Enter 다음
+    else if(qiStep==='group' && !inInput) {
+      if(ARROW){ e.preventDefault(); grpIdx=qiMove(grpIdx,GROUPS.length,k); qiPaintGroup(); return; }
+      if(k===' '){ e.preventDefault(); const g=GROUPS[grpIdx]; selGroup=(selGroup===g)?'':g; renderGroups(); qiPaintGroup(); return; }
+      if(k==='Enter'){ e.preventDefault(); qiSetStep('pay'); return; }
       e.preventDefault(); return;
-    } else if(qiStep==='amount' && onCustom) {
-      if(e.key==='ArrowUp'){ e.preventDefault(); qiAmtStep(1); return; }
-      if(e.key==='ArrowDown'){ e.preventDefault(); qiAmtStep(-1); return; }
-      if(e.key==='Enter'){ e.preventDefault(); quickSave(); return; }
+    }
+    // 결제: ←→ 이동 · Space 선택 · Enter 다음 (현금 기본)
+    else if(qiStep==='pay' && !inInput) {
+      if(ARROW){ e.preventDefault(); payIdx=qiMove(payIdx,PAYS.length,k); qiPaintPay(); return; }
+      if(k===' '){ e.preventDefault(); setPayType(PAYS[payIdx]); return; }
+      if(k==='Enter'){ e.preventDefault(); setPayType(PAYS[payIdx]); qiSetStep('amount'); return; }
+      e.preventDefault(); return;
+    }
+    // 금액(템플릿): ←→ 이동 · Space 선택 · 숫자 입력 시 직접입력 전환 · Enter 저장
+    else if(qiStep==='amount' && !amtCustom && !inInput) {
+      if(ARROW){ e.preventDefault(); amtIdx=qiMove(amtIdx,AMTS.length,k); qiPaintAmt(); return; }
+      if(k===' '){ e.preventDefault(); qiSetAmount(AMTS[amtIdx]); return; }
+      if(/^[0-9]$/.test(k)){ e.preventDefault(); qiAmtToCustom(k); return; }
+      if(k==='Enter'){ e.preventDefault(); quickSave(); return; }
+      e.preventDefault(); return;
+    }
+    // 금액(직접입력): 숫자 네이티브 입력 · Enter 저장 · ↑↓ 템플릿으로 복귀
+    else if(qiStep==='amount' && onCustom) {
+      if(k==='Enter'){ e.preventDefault(); quickSave(); return; }
+      if(k==='ArrowUp'||k==='ArrowDown'){ e.preventDefault(); amtCustom=false; e.target.blur(); qiPaintAmt(); return; }
     }
   } else if(e.key==='Enter'&&inputOpen&&inInput) {
     // mobile: Enter inside the sheet saves directly
