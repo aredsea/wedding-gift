@@ -2107,9 +2107,16 @@ document.addEventListener('keydown', function(e) {
       if(k==='ArrowUp'||k==='ArrowDown'){ e.preventDefault(); amtCustom=false; e.target.blur(); qiPaintAmt(); return; }
     }
   } else if(e.key==='Enter'&&inputOpen&&inInput) {
-    // mobile: Enter inside the sheet saves directly
     const panel=document.getElementById('qinput');
-    if(panel.contains(e.target)){e.preventDefault();quickSave();return;}
+    if(panel.contains(e.target)){
+      e.preventDefault();
+      if(e.target.id==='qiName') {
+        if(!e.target.value.trim()){ toast('이름을 입력하세요'); return; }
+        document.getElementById('qiCustom').focus();
+        return;
+      }
+      quickSave();return;
+    }
   }
 
   if((e.ctrlKey||e.metaKey)&&(e.key==='e'||e.key==='E')){e.preventDefault();doExport();return;}
