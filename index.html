@@ -1415,12 +1415,14 @@ let qiStep = 'name';                  // name | group | pay | amount
 let grpIdx = 0, payIdx = 0, amtIdx = 0, amtCustom = false;
 const PAYS = ['cash','transfer'];
 function qiDesktop() { return window.innerWidth >= 1024; }
+// 데스크탑(상시 노출) 또는 모바일에서 입력 시트가 열린 동안(외장 키보드 사용 시)
+// 동일한 단계별 입력 프로토콜(이름→구분→현금/이체→금액→저장)을 활성화한다.
 function qiActive() {
-  return qiDesktop()
+  return (qiDesktop() || inputOpen)
     && document.getElementById('roomScreen').classList.contains('hidden')
     && !document.querySelector('.modal-bg.show');
 }
-function qiFocusName() { if(qiDesktop()) qiSetStep('name'); }
+function qiFocusName() { if(qiDesktop() || inputOpen) qiSetStep('name'); }
 function qiClearCursors() {
   document.querySelectorAll('#qiGroups .qi-grp.kbd, .qi-type.kbd, #qiAmounts .qi-amt.kbd').forEach(e=>e.classList.remove('kbd'));
 }
@@ -2060,7 +2062,7 @@ document.addEventListener('keydown', function(e) {
     if(document.getElementById('editModal').classList.contains('show')){closeModal('editModal');return;}
     if(document.getElementById('menuModal').classList.contains('show')){closeModal('menuModal');return;}
     if(document.getElementById('dupModal').classList.contains('show')){closeModal('dupModal');return;}
-    if(qiDesktop()&&(qiStep==='group'||qiStep==='pay')){qiSetStep('name');return;}
+    if((qiDesktop()||inputOpen)&&(qiStep==='group'||qiStep==='pay'||qiStep==='amount')){qiSetStep('name');return;}
     if(inputOpen){closeSheet();return;}
     if(inInput){e.target.blur();return;}
     return;
@@ -2105,17 +2107,6 @@ document.addEventListener('keydown', function(e) {
     else if(qiStep==='amount' && onCustom) {
       if(k==='Enter'){ e.preventDefault(); quickSave(); return; }
       if(k==='ArrowUp'||k==='ArrowDown'){ e.preventDefault(); amtCustom=false; e.target.blur(); qiPaintAmt(); return; }
-    }
-  } else if(e.key==='Enter'&&inputOpen&&inInput) {
-    const panel=document.getElementById('qinput');
-    if(panel.contains(e.target)){
-      e.preventDefault();
-      if(e.target.id==='qiName') {
-        if(!e.target.value.trim()){ toast('이름을 입력하세요'); return; }
-        document.getElementById('qiCustom').focus();
-        return;
-      }
-      quickSave();return;
     }
   }
 
