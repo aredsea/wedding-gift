@@ -1487,6 +1487,11 @@ local function renderPicker(tid)
   end
 
   -- 칩
+  -- 문장형 목록. 페티시·성적 취향은 항목이 짧은 낱말이 아니라 구와 문장이라
+  -- 기본 칩(한 줄 전제)에 넣으면 뒤가 잘리거나 칸을 삐져나간다.
+  -- 줄바꿈을 허용하는 변형 클래스를 덧붙인다. 기본 칩 규칙은 건드리지 않는다.
+  local wide = (id == "FETISH" or id == "PREF") and " SCAT88-chip-w" or ""
+
   local buf = {}
   for _, i in ipairs(idxs) do
     local v = list[i]
@@ -1506,7 +1511,7 @@ local function renderPicker(tid)
                    .. '<span class="SCAT88-chiptx">'..v..'</span></span>'
                    .. '<span class="SCAT88-chipdesc">'..desc..'</span></span>'
       else
-        buf[#buf+1] = '<span class="SCAT88-chip'..on..'" risu-trigger="pickIdx'..i..'">'
+        buf[#buf+1] = '<span class="SCAT88-chip'..wide..on..'" risu-trigger="pickIdx'..i..'">'
                    .. '<span class="SCAT88-chipnum">'..string.format("%02d", i)..'</span>'
                    .. '<span class="SCAT88-chiptx">'..v..'</span></span>'
       end
@@ -1921,12 +1926,16 @@ function rollWFetish(tid) rollInto(tid, "fetish", FETISH_POOL) end
 function rollWPref(tid)   rollInto(tid, "pref",   PREF_POOL)   end
 
 -- 목록에서 고르는 화면. 상단에 직접 입력 · 다시 뽑기 · 비우기가 함께 붙는다.
+--
+-- 열 수가 다르다. 페티시는 「목덜미와 귀」 같은 낱말이라 2열에 들어가지만,
+-- 성적 취향은 「이끌리는 쪽. 결정을 넘기고 따라간다」 처럼 문장이라
+-- 2열에 넣으면 칩 하나가 서너 줄로 접혀 목록이 읽히지 않는다.
 function setWFetishPick(tid)
   openPicker(tid, "FETISH", wp(tid).."fetish", "성적 페티시", 2, 2)
 end
 
 function setWPrefPick(tid)
-  openPicker(tid, "PREF", wp(tid).."pref", "성적 취향", 2, 2)
+  openPicker(tid, "PREF", wp(tid).."pref", "성적 취향", 2, 1)
 end
 
 setWName = async(function(tid)
